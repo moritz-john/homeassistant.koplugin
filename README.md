@@ -7,8 +7,8 @@
 </p>
 
 ### Features:
-- Control an unlimited number of Home Assistant entities from KOReader.
-- Lightweight, non-intrusive interface while reading your book.
-- Support for basic actions like `light.turn_on`, `switch.toggle` or `fan.turn_on`
-- Simple, editable configuration file.
-- Success and error notifications.
+- Control any number of Home Assistant entities from KOReader  
+- Basic service support (e.g. `light/turn_on`, `switch/toggle`, `fan/turn_on`)  
+- Lightweight, unobtrusive interface  
+- Simple text-based configuration  
+- Success/error notifications
