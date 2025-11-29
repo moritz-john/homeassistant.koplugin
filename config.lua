@@ -6,7 +6,7 @@ return {
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 
     -- Home Assistant Entity configuration
-    -- Documentation: TODO: add link
+    -- Documentation: https://sputge.com/docs/homeassistant_koplugin/#installation--configuration
     entities = {
         {
             id = "light.reading_lamp",      -- Home Assistant Entity ID
