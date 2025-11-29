@@ -3,5 +3,5 @@ return {
     name = "homeassistant",
     fullname = _("Home Assistant"),
     description = _([[This plugin allows KOReader to control Home Assistant entities through its REST API.]]),
-    version = "v0.1.0",
+    version = "v1.0.0",
 }
