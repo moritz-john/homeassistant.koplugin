@@ -1,6 +1,9 @@
 # homeassistant.koplugin
 
-## Getting started: [Installation Instructions & Documentation](https://sputge.com/docs/homeassistant_koplugin/#installation--configuration)
+### Getting started: 
+
+1) [Installation Instructions & Documentation](https://sputge.com/docs/homeassistant_koplugin/#installation--configuration)  
+2) [Latest Release download](https://github.com/moritz-john/homeassistant.koplugin/releases)
 
 <p align="center">
   <img src="assets/homeassistant_koreader.gif" alt="homeassistant.koplugin Demo GIF" width="500">
