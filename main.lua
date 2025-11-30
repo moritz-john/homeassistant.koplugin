@@ -23,7 +23,7 @@ function HomeAssistant:init()
     self.ui.menu:registerToMainMenu(self)
 end
 
--- Helper function to get display menu text for an entity
+-- Helper function to get menu text for an entity
 function HomeAssistant:getEntityDisplayText(entity)
     if entity.label ~= nil and entity.label ~= "" then
         return entity.label
