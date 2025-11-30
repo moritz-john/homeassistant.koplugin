@@ -13,5 +13,6 @@
 - Control any number of Home Assistant entities from KOReader  
 - Basic service support (e.g. `light/turn_on`, `switch/toggle`, `fan/turn_on`)  
 - Lightweight, unobtrusive interface  
+- Gesture & QuickMenu support
 - Simple text-based configuration  
 - Success/error notifications
