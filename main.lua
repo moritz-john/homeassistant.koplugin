@@ -44,6 +44,7 @@ function HomeAssistant:onDispatcherRegisterActions()
             arg = entity,
             title = self:getEntityDisplayText(entity),
             general = true,
+            separator = (i == #ha_config.entities),  -- only true for the last entity
         })
     end
 end
