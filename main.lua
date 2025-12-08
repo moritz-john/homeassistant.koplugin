@@ -77,16 +77,24 @@ function HomeAssistant:onActivateHAEvent(entity)
     if code == 200 or code == 201 then
         -- Success
         UIManager:show(InfoMessage:new {
-            text = string.format(_("Success!\n%s\nservice: %s"),
+            text = string.format(_(
+                "Success!\n" ..
+                "%s\n" ..
+                "service: %s"),
                 entity.id, entity.service),
             timeout = 3,
         })
     else
         UIManager:show(InfoMessage:new {
             -- Failure
-            text = string.format(_("Failure!\nEntity: %s\nService: %s\nResponse Code: %s"),
+            text = string.format(_(
+                "Failure!\n" ..
+                "Entity: %s\n" ..
+                "Service: %s\n" ..
+                "Response Code: %s"),
                 entity.id, entity.service, tostring(code)),
             timeout = 6,
+            -- icon= "homeassistant",
         })
     end
 end
