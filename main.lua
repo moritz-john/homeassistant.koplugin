@@ -1,4 +1,4 @@
--- homeassistant.koplugin
+--- homeassistant.koplugin
 -- This plugin allows KOReader to control Home Assistant entities through its REST API.
 
 -- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
@@ -12,51 +12,44 @@ local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
+local json = require("json")
 
 local HomeAssistant = WidgetContainer:extend {
     name = "homeassistant",
     is_doc_only = false,
 }
 
+--- Initialize the plugin
 function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 end
 
--- Helper function to get menu text for an entity
-function HomeAssistant:getEntityDisplayText(entity)
-    if entity.label ~= nil and entity.label ~= "" then
-        return entity.label
-    else
-        return string.format("%s → (%s)", entity.id, entity.service)
-    end
-end
-
--- Register a unique action for each HA entity (e.g. for gestures)
+--- Register dispatcher actions for each Home Assistant entity
+-- This allows entities to be triggered via gestures
 function HomeAssistant:onDispatcherRegisterActions()
     for i, entity in ipairs(ha_config.entities) do
-        -- Create a unique action ID for each entity
         local action_id = string.format("ha_entity_%d", i)
 
         Dispatcher:registerAction(action_id, {
             category = "none",
             event = "ActivateHAEvent",
             arg = entity,
-            title = self:getEntityDisplayText(entity),
+            title = entity.label,
             general = true,
-            separator = (i == #ha_config.entities),  -- only true for the last entity
+            separator = (i == #ha_config.entities), -- add separator after last entity
         })
     end
 end
 
---- Add Tools menu entry with HA entities in submenu
+--- Add Home Assistant submenu to the Tools menu
+-- Creates a menu item for each configured entity
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
 
     for _, entity in ipairs(ha_config.entities) do
         table.insert(sub_items, {
-            -- Use custom label if provided, otherwise show "entity.id → (service)"
-            text = self:getEntityDisplayText(entity),
+            text = entity.label,
             callback = function()
                 self:onActivateHAEvent(entity)
             end,
@@ -70,72 +63,124 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
--- Flow: prepareAPICall -> makeAPICall -> display result message to user
-function HomeAssistant:onActivateHAEvent(entity)
-    local code = self:prepareAPICall(entity)
-
-    -- Display message based on HTTP response code
-    if code == 200 or code == 201 then
-        -- Success
-        UIManager:show(InfoMessage:new {
-            text = string.format(_(
-                "Success!\n" ..
-                "%s\n" ..
-                "service: %s"),
-                entity.id, entity.service),
-            timeout = 3,
-        })
+--- Extract domain from or entity.domain or entity.id 
+function HomeAssistant:getDomain(entity)
+    if entity.domain and entity.domain ~= "" then
+        return entity.domain
     else
-        UIManager:show(InfoMessage:new {
-            -- Failure
-            text = string.format(_(
-                "Failure!\n" ..
-                "Entity: %s\n" ..
-                "Service: %s\n" ..
-                "Response Code: %s"),
-                entity.id, entity.service, tostring(code)),
-            timeout = 6,
-            -- icon= "homeassistant",
-        })
+        -- Extract domain from entity.id (e.g., "light.living_room" -> "light")
+        return entity.id:match("^([^.]+)")
     end
 end
 
-function HomeAssistant:prepareAPICall(entity)
-    -- Construct Home Assistant API endpoint URL
-    local url = string.format("http://%s:%d/api/services/%s",
-        ha_config.host, ha_config.port, entity.service)
+--- Handle ActivateHAEvent
+-- Flow: "POST"|"GET" -> prepareRequest -> performRequest -> display result message to user
+function HomeAssistant:onActivateHAEvent(entity)
+    local method = entity.service and "POST" or "GET"
 
-    -- Prepare JSON request body with entity_id parameter
-    local request_body = string.format('{"entity_id": "%s"}', entity.id)
+    -- Prepare (and perform) the request
+    local code, response = self:prepareRequest(entity, method)
 
-    -- Execute the API call and return the HTTP status code
-    local code = self:makeAPICall(url, request_body)
+    -- Build message text based on result
+    local messageText, timeout = self:buildMessage(entity, code, response, method)
 
-    return code
+    -- Show message box
+    UIManager:show(InfoMessage:new {
+        text = messageText,
+        timeout = timeout,
+        icon = "homeassistant",
+    })
 end
 
---- Send a POST request to the Home Assistant API
-function HomeAssistant:makeAPICall(url, request_body)
+--- Prepare HTTP request for Home Assistant API
+-- POST requests call services (e.g., turn_on, turn_off)
+-- GET requests retrieve entity state
+function HomeAssistant:prepareRequest(entity, method)
+    local url, request_body
+
+    if method == "POST" then
+        -- Call a service (e.g., light.turn_on, switch.toggle)
+        local domain = self:getDomain(entity)
+
+        url = string.format("http://%s:%d/api/services/%s/%s",
+            ha_config.host, ha_config.port, domain, entity.service)
+
+        request_body = json.encode({ entity_id = entity.id })
+    else
+        -- Query entity state
+        url = string.format("http://%s:%d/api/states/%s",
+            ha_config.host, ha_config.port, entity.id)
+
+        request_body = nil
+    end
+
+    -- Perform the request and return code, response
+    return self:performRequest(url, method, request_body)
+end
+
+--- Send a REST API request to the Home Assistant API
+function HomeAssistant:performRequest(url, method, request_body)
     local http = require("socket.http")
     local ltn12 = require("ltn12")
-
     http.TIMEOUT = 6
 
+    local headers = {
+        ["Authorization"] = "Bearer " .. ha_config.token,
+    }
+    local source
     local response_body = {}
 
-    local res, code, headers, status_line = http.request {
+    -- Only POST requests include a request body
+    if request_body then
+        headers["Content-Type"] = "application/json"
+        headers["Content-Length"] = tostring(#request_body)
+        source = ltn12.source.string(request_body)
+    end
+
+    local res, code = http.request {
         url = url,
-        method = "POST",
-        headers = {
-            ["Authorization"] = "Bearer " .. ha_config.token,
-            ["Content-Type"] = "application/json",
-            ["Content-Length"] = tostring(#request_body)
-        },
-        source = ltn12.source.string(request_body),
+        method = method,
+        headers = headers,
+        source = source,
         sink = ltn12.sink.table(response_body)
     }
 
-    return code
+    return code, table.concat(response_body)
+end
+
+--- Build user-facing message based on API response
+function HomeAssistant:buildMessage(entity, code, response, method)
+    -- on Error:
+    if code ~= 200 and code ~= 201 then
+        return string.format(_(
+                "- - Error - -\n" ..
+                "Label: %s\n" ..
+                "Entity ID: %s\n" ..
+                "Domain: %s\n" ..
+                "Service: %s\n" ..
+                "Response: %s"),
+            entity.label, entity.id, self:getDomain(entity), entity.service or "N/A", tostring(code)
+        ), nil
+    end
+    -- on Success:
+    if method == "POST" then
+        return string.format(_(
+                "- - Success - -\n" ..
+                "❯ %s\n" ..
+                "Domain: %s\n" ..
+                "Service: %s"),
+            entity.label, self:getDomain(entity), entity.service
+        ), 5
+    else
+        local state = json.decode(response)
+        return string.format(_(
+                "- - Info - -\n" ..
+                "%s\n" ..
+                "Domain: %s\n" ..
+                "❯ State: %s\n"),
+            entity.label, self:getDomain(entity), state.state or "unknown"
+        ), nil
+    end
 end
 
 return HomeAssistant
