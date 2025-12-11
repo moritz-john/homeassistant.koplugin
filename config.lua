@@ -6,32 +6,36 @@ return {
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 
     -- Home Assistant Entity configuration
-    -- Documentation: https://sputge.com/docs/homeassistant_koplugin/#installation--configuration
+    -- Documentation: https://github.com/moritz-john/homeassistant.koplugin#getting-started
     entities = {
         {
-            id = "light.reading_lamp",      -- Home Assistant Entity ID
-            service = "light/toggle",       -- <domain>/<service>
-            label = "Toggle: Reading Lamp", -- Optional: custom menu label
+            id = "all",                      -- Entity ID
+            domain = "light",                -- Required because Entity ID "all" has no domain
+            service = "turn_off",            -- Call HA service (omit to read state instead)
+            label = "All Lights → turn_off", -- Display name
         },
         {
-            id = "light.all_lights",
-            service = "light/turn_on",
-            label = "☀ Turn on ALL lights",
+            id = "light.reading_lamp",
+            service = "toggle",
+            label = "Reading Lamp → toggle",
         },
         {
             id = "switch.coffee_machine",
-            service = "switch/turn_on",
+            service = "turn_on",
             label = "♨ Coffee Time",
         },
         {
-            id = "media_player.example",
-            service = "media_player/media_play_pause",
-            label = "⏯ Play/Pause Music",
+            id = "sensor.temperature_outside",
+            -- NO <service> → read the entity state instead
+            label = "Show Temperature Outside",
         },
         {
-            id = "fan.ceiling_fan",
-            service = "fan/turn_on",
-            label = "",
+            id = "light.living_room",
+            label = "Light in living room left on?",
+        },
+        {
+            id = "binary_sensor.front_door",
+            label = "Is the door closed?",
         },
     },
 }

@@ -5,7 +5,7 @@ on:
     inputs:
       version: 
         description: "Version"
-        default: "v0.1.0"
+        default: "v1.0.0"
         required: true
 
 permissions:
@@ -14,13 +14,19 @@ permissions:
 jobs:
   zip-files:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6.0.0
 
+      - name: Prepare folder structure
+        run: |
+          mkdir -p homeassistant.koplugin
+          mkdir -p icons
+          cp main.lua config.lua _meta.lua homeassistant.koplugin/
+          cp homeassistant.svg icons/
+
       - name: Create ZIP archive
-        run: zip homeassistant.koplugin.zip main.lua config.lua _meta.lua
+        run: zip -r homeassistant.koplugin.zip homeassistant.koplugin icons
 
       - name: Upload Release
         uses: ncipollo/release-action@v1.20.0
