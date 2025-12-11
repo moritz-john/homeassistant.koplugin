@@ -14,7 +14,8 @@ This [KOReader](https://koreader.rocks/) plugin lets you control Home Assistant 
 ## Features
 
 - Control any number of Home Assistant entities from KOReader 
-- Basic service support (e.g. `light/turn_on`, `switch/toggle`, `fan/turn_on`)  
+- Basic service support (e.g. `light/turn_on`, `fan/turn_on` or `media_player/media_play_pause`)  
+- Basic entity state support (e.g. `sensor.temperature_outside` or `binary_sensor.front_door`)
 - Lightweight, unobtrusive interface  
 - Simple text-based configuration  
 - Success/error notifications
@@ -40,89 +41,106 @@ token =                 -- Change to your own Long-Lived Access Token
 
 >[!tip] 
 > How to create a Long-Lived Access Token:   
-> [**Home Assistant**](https://my.home-assistant.io/redirect/profile): *Profile → >Security (scroll down) → Long-lived access tokens → Create token*  
+> [**Home Assistant**](https://my.home-assistant.io/redirect/profile): *Profile → Security (scroll down) → Long-lived access tokens → Create token*  
 > _Copy the token now - you won’t be able to view it again._
 
 <br>
 
 #### 2.2 Add your own Home Assistant Entities
+##### 2.2.1 Controllable Entities
 
-For each entity you want to control, add an entry with:
-
+For each Home Assistant entity you want to control (e.g. `light → toggle`), add an entry with:
 ```
 {
-id = "light.example"         → Home Assistant Entity ID
-service = "light/toggle"     → Domain-specific service to call
-label = "Light Example"      → Optional text label
+    id = "light.reading_light"   → Entity ID (required)
+    service = "toggle"           → Service
+    label = "Reading Light"      → Display name (required)
 },
 ```
 
->[!important]
-> Use the **service** format `light/turn_on`.  
-> Do not use automation-style **action** syntax ~~`light.turn_on`~~.
+<details>
+<summary>Controll ALL entities of a specifig Home Assistant Domain</summary>
 
-<br>
+To target every entity in a Home Assistant domain, set:  
+1) `id = "all"`  
+2) `domain = "<domain_name>"` (required, because "all" has no domain prefix)  
+Example:
+
+```
+{
+    id = "all"
+    domain = "light"
+    service = "toggle"
+    label = "Light Example"
+},
+```
+</details>
+
+##### 2.2.2 Read-Only Entities
+
+If you want to get the [state](https://www.home-assistant.io/docs/configuration/state_object/#about-the-state) of an entitiy omit the `<service>` call.  
+Example syntax:
+
+```
+{
+    id = "sensor.temperature_outside"    → Entity ID (required)
+    label = "Show Temperature Outside"   → Display name (required)
+},
+```
 
 Example entries for Home Assistant entities in `config.lua`:
 ```lua
 {
-    id = "light.reading_lamp",
-    service = "light/toggle",   
-    label = "Toggle: Reading Lamp",
+    id = "all",
+    domain = "light",
+    service = "turn_off",
+    label = "Turn off all lights",
 },
 {
-    id = "light.all_lights",
-    service = "light/turn_on",
-    label = "Turn on ALL lights",
+    id = "light.reading_lamp",
+    service = "toggle",
+    label = "Reading Lamp → toggle",
 },
 {
     id = "switch.coffee_machine",
-    service = "switch/turn_on",
-    label = "Coffee Time",
+    service = "turn_on",
+    label = "♨ Coffee Time",
 },
 {
-    id = "fan.ceiling_fan",
-    service = "fan/turn_on",
-    label = "",
+    id = "light.living_room",
+    label = "Light in living room left on?",
+},
+{
+    id = "binary_sensor.front_door",
+    label = "Is the door closed?",
 },
 [...]
 ```
 _Be aware of proper indentations, `{}` and `,` otherwise you will get syntax errors_
 
->[!Tip] 
-> If you leave the `label` field empty, the submenu entry for that entity will look like this:  
-> `<id> → <(service)>`
-
-<details>
-<summary>Screenshot: Empty Label</summary>
-<p align="left">
-<img src="assets/empty_label.png"  alt="homeassistant.koplugin screenshots" style="width:70%; height:auto;"/>
-</p>
-</details>
-
-<br>
-
 #### Example Actions & Services
+
 Here are common Home Assistant services you can use in `config.lua`:
 
-| Entity Type      | Action Name                                              | Corresponding Service                                          | Example Entity ID          |
-| :--------------- | :------------------------------------------------------- | :------------------------------------------------------------- | :------------------------- |
-| **Light**        | light.turn_on <br/> light.turn_off <br/> light.toggle    | `light/turn_on` <br/> `light/turn_off` <br/> `light/toggle`    | light.reading_lamp         |
-| **Switch**       | switch.turn_on <br/> switch.turn_off <br/> switch.toggle | `switch/turn_on` <br/> `switch/turn_off` <br/> `switch/toggle` | switch.outlet_couch        |
-| **Fan**          | fan.turn_on <br/> fan.turn_off <br/> fan.toggle          | `fan/turn_on` <br/> `fan/turn_off` <br/> `fan/toggle`          | fan.ceiling_fan            |
-| **Scene**        | scene.turn_on                                            | `scene/turn_on`                                                | scene.reading_mood         |
-| **Automation**   | automation.trigger                                       | `automation/trigger`                                           | automation.bed_routine     |
-| **Input Button** | input_button.press                                       | `input_button/press`                                           | input_button.wake_computer |
-| **Media Player** | media_player.media_play_pause                            | `media_player/media_play_pause`                                |                            |
+| Entity Type      | Example Entity ID          | Example Services                                                       |
+| :--------------- | :------------------------- | :--------------------------------------------------------------------- |
+| **Light**        | light.reading_lamp         | `turn_on` <br> `turn_off` <br> `toggle`                                |
+| **Switch**       | switch.outlet_couch        | `turn_on` <br> `turn_off` <br> `toggle`                                |
+| **Fan**          | fan.ceiling_fan            | `turn_on` <br> `turn_off` <br> `toggle`                                |
+| **Media Player** | media_player.all_speakers  | `media_play_pause` <br> `media_next_track` <br> `media_previous_track` |
+| **Scene**        | scene.reading_mood         | `turn_on`                                                              |
+| **Automation**   | automation.bed_routine     | `trigger`                                                              |
+| **Input Button** | input_button.wake_computer | `press`                                                                |
+
 
 >[!Note] 
 > Only _basic_ services are supported.  
 > Additional service data (e.g. `rgb_color`) is not.
 
-<br>
-
 ### 3. Copy files
 After editing `config.lua` copy the entire `homeassistant.koplugin` folder into `koreader/plugins/`.
+
+Copy the `icons` folder to `koreader/`.
 
 ### 4. Restart KOReader
 The plugin appears under **Tools → Page 2 → Home Assistant**    
@@ -165,11 +183,11 @@ The result looks like this:
 </p>
 
 <p align="center">
-<img src="assets/submenu_entries.png"  alt="Example Home Assistant entities in the submenu" style="width:70%; height:auto;"/>
+<img src="assets/error_message.png"  alt="Error notification" style="width:70%; height:auto;"/>
 </p>
 
 <p align="center">
-<img src="assets/failure_success_message.png"  alt="Failure & Success notification" style="width:70%; height:auto;"/>
+<img src="assets/success_message.png"  alt="Success notification" style="width:70%; height:auto;"/>
 </p>
 
 [homeassistant.koplugin Repository](https://github.com/moritz-john/homeassistant.koplugin)  
