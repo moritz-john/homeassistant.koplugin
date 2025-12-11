@@ -118,7 +118,7 @@ Example entries for Home Assistant entities in `config.lua`:
 ```
 _Be aware of proper indentations, `{}` and `,` otherwise you will get syntax errors_
 
-#### Example Actions & Services
+#### Example Services
 
 Here are common Home Assistant services you can use in `config.lua`:
 
