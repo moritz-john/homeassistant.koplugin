@@ -97,6 +97,7 @@ function HomeAssistant:onActivateHAEvent(entity)
         url = string.format("http://%s:%d/api/services/%s/%s",
             ha_config.host, ha_config.port, domain, action)
 
+        -- START: Build request_body
         local build_request_body = { entity_id = entity.target }
 
         -- Add additional Home Assistant data attributes to the service call
@@ -107,6 +108,7 @@ function HomeAssistant:onActivateHAEvent(entity)
         end
 
         request_body = json.encode(build_request_body)
+        -- END: Build request_body
     else
         -- GET: Query entity state
         method = "GET"
