@@ -63,20 +63,18 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Extract domain from or entity.domain or entity.id 
-function HomeAssistant:getDomain(entity)
-    if entity.domain and entity.domain ~= "" then
-        return entity.domain
-    else
-        -- Extract domain from entity.id (e.g., "light.living_room" -> "light")
-        return entity.id:match("^([^.]+)")
+--- Extract domain & action from or entity.acion
+function HomeAssistant:getDomainandAction(entity)
+    if entity.action then
+        local domain, action = entity.action:match("^([^.]+)%.(.+)$")
+        return domain, action
     end
 end
 
 --- Handle ActivateHAEvent
 -- Flow: "POST"|"GET" -> prepareRequest -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local method = entity.service and "POST" or "GET"
+    local method = entity.action and "POST" or "GET"
 
     -- Prepare (and perform) the request
     local code, response = self:prepareRequest(entity, method)
@@ -100,12 +98,13 @@ function HomeAssistant:prepareRequest(entity, method)
 
     if method == "POST" then
         -- Call a service (e.g., light.turn_on, switch.toggle)
-        local domain = self:getDomain(entity)
+        local domain, action = self:getDomainandAction(entity)
 
         url = string.format("http://%s:%d/api/services/%s/%s",
-            ha_config.host, ha_config.port, domain, entity.service)
+            ha_config.host, ha_config.port, domain, action)
 
-        local build_request_body = { entity_id = entity.id }
+        local entity_id = entity.target or entity.id -- TODO: temporay, until everything is refactored
+        local build_request_body = { entity_id = entity_id }
 
         if entity.data then
             for k, v in pairs(entity.data) do
