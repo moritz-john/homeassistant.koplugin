@@ -110,7 +110,7 @@ function HomeAssistant:prepareRequest(entity, method)
     local url, request_body
 
     if method == "POST" then
-        -- Call a service (e.g., light.turn_on, switch.toggle)
+        -- Call a action (e.g., light.turn_on, switch.toggle)
         local domain, action = self:getDomainandAction(entity)
 
         url = string.format("http://%s:%d/api/services/%s/%s",
@@ -118,6 +118,7 @@ function HomeAssistant:prepareRequest(entity, method)
 
         local build_request_body = { entity_id = entity.target }
 
+        -- Add addtional Home Assistant data attributes to the service call
         if entity.data then
             for k, v in pairs(entity.data) do
                 build_request_body[k] = v
