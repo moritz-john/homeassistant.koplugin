@@ -75,6 +75,15 @@ function HomeAssistant:getDomainandAction(entity)
     end
 end
 
+--- TODO: currently not in use
+-- function HomeAssistant:stringifyTarget(target)
+--     if type(target) == "table" then
+--         return table.concat(target, ", ")
+--     else
+--         return tostring(target or "N/A")
+--     end
+-- end
+
 --- Handle ActivateHAEvent
 -- Flow: "POST"|"GET" -> prepareRequest -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
@@ -159,17 +168,17 @@ function HomeAssistant:performRequest(url, method, request_body)
 end
 
 --- Build user-facing message based on API response
+-- TODO: decide if message should include  "Entity ID" (-> requires funtion stringifyTarget)
 function HomeAssistant:buildMessage(entity, code, response, method)
     -- on Error:
     if code ~= 200 and code ~= 201 then
         return string.format(_(
                 "- - Error - -\n" ..
                 "Label: %s\n" ..
-                "Entity ID: %s\n" ..
                 "Domain: %s\n" ..
                 "Service: %s\n" ..
                 "Response: %s"),
-            entity.label, entity.id, self:getDomain(entity), entity.service or "N/A", tostring(code)
+            entity.label, self:getDomainandAction(entity), entity.action or "N/A", tostring(code)
         ), nil
     end
     -- on Success:
@@ -178,8 +187,8 @@ function HomeAssistant:buildMessage(entity, code, response, method)
                 "- - Success - -\n" ..
                 "❯ %s\n" ..
                 "Domain: %s\n" ..
-                "Service: %s"),
-            entity.label, self:getDomain(entity), entity.service
+                "Action: %s"),
+            entity.label, self:getDomainandAction(entity), entity.action
         ), 5
     else
         local state = json.decode(response)
