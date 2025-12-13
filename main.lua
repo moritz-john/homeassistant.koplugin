@@ -121,35 +121,8 @@ function HomeAssistant:onActivateHAEvent(entity)
     -- Perform the request
     local code, response = self:performRequest(url, method, request_body)
 
-    -- local response = [[{
-    -- "state": "sunny",
-    -- "attributes": {
-    --     "forecast": [
-    --     {
-    --         "datetime": "2025-12-13",
-    --         "temperature": 22,
-    --         "condition": "sunny",
-    --         "precipitation": 0
-    --     },
-    --     {
-    --         "datetime": "2025-12-14",
-    --         "temperature": 18,
-    --         "condition": "rainy",
-    --         "precipitation": 5.2
-    --     }
-    --     ]
-    -- }
-    -- }]]
-
-    -- Build message text based on result
-    local messageText, timeout = self:buildMessage(entity, code, response, method)
-
-    -- Show message box
-    UIManager:show(InfoMessage:new {
-        text = messageText,
-        timeout = timeout,
-        icon = "homeassistant",
-    })
+    -- Build and show message
+    self:buildMessage(entity, code, response, method)
 end
 
 --- Send a REST API request to the Home Assistant API
@@ -183,52 +156,75 @@ function HomeAssistant:performRequest(url, method, request_body)
 end
 
 --- Build user-facing message based on API response
--- TODO: decide if message should include  "Entity ID" (-> requires funtion stringifyTarget)
 function HomeAssistant:buildMessage(entity, code, response, method)
+    local messageText, timeout
+    
     -- on Error:
     if code ~= 200 and code ~= 201 then
-        return string.format(_(
-                "- - Error - -\n" ..
-                "label: %s\n" ..
-                "domain: %s\n" ..
-                "action: %s\n" ..
-                "response: %s"),
-            entity.label, self:getDomainandAction(entity), entity.action or "n/a", tostring(code)
-        ), nil
-    end
-    -- on Success ("POST"):
-    if method == "POST" then
-        return string.format(_(
-                "- - Success - -\n" ..
-                "❯ %s\n" ..
-                "Domain: %s\n" ..
-                "Action: %s"),
-            entity.label, self:getDomainandAction(entity), entity.action
-        ), 5
+        messageText, timeout = self:buildErrorMessage(entity, code)
+    -- on Success:
+    elseif method == "POST" then
+        -- "POST":
+        messageText, timeout = self:buildSuccessPostMessage(entity)
     else
-        -- on Success ("GET"):
-        local state = json.decode(response)
-
-        -- Build the base message
-        local message = string.format(_(
-                "- - Info - -\n" ..
-                "%s\n" ..
-                "domain: %s\n" ..
-                "state: %s\n"),
-            entity.label, self:getDomainandAction(entity), state.state or "unknown"
-        )
-
-        -- Extend the base message with attributes using the new function
-        message = message .. self:buildAttributeMessage(state, entity)
-
-        return message, nil
+        -- "GET":
+        messageText, timeout = self:buildSuccessGetMessage(entity, response)
     end
+    
+    -- Show message box
+    UIManager:show(InfoMessage:new {
+        text = messageText,
+        timeout = timeout,
+        icon = "homeassistant",
+    })
+end
+
+--- Build error message
+function HomeAssistant:buildErrorMessage(entity, code)
+    return string.format(_(
+            "- - Error - -\n" ..
+            "label: %s\n" ..
+            "domain: %s\n" ..
+            "action: %s\n" ..
+            "response: %s"),
+        entity.label, self:getDomainandAction(entity), entity.action or "n/a", tostring(code)
+    ), nil
+end
+
+--- Build success message for POST requests
+function HomeAssistant:buildSuccessPostMessage(entity)
+    return string.format(_(
+            "- - Success - -\n" ..
+            "❯ %s\n" ..
+            "Domain: %s\n" ..
+            "Action: %s"),
+        entity.label, self:getDomainandAction(entity), entity.action
+    ), 5
+end
+
+--- Build success message for GET requests
+function HomeAssistant:buildSuccessGetMessage(entity, response)
+    local state = json.decode(response)
+    
+    -- Build the base message
+    local message = string.format(_(
+            "- - Info - -\n" ..
+            "%s\n" ..
+            "domain: %s\n" ..
+            "state: %s\n"),
+        entity.label, self:getDomainandAction(entity), state.state or "unknown"
+    )
+    
+    -- Extend the base message with attributes
+    message = message .. self:buildAttributeMessage(state, entity)
+    
+    return message, nil
 end
 
 --- Build attribute message string from decoded state and entity config
 function HomeAssistant:buildAttributeMessage(state, entity)
     local attribute_message = ""
-
+    
     -- Check if entity.attributes are defined in config
     if entity.attributes then
         -- Make sure attributes is always a list
@@ -241,10 +237,10 @@ function HomeAssistant:buildAttributeMessage(state, entity)
             local attribute_value
 
             -- Check if it's a top-level state property first
-            -- this alows us to access e.g. state.last_changed or state.last_updated
+            -- this allows us to access e.g. state.last_changed or state.last_updated
             if state[attribute_name] then
                 attribute_value = state[attribute_name]
-                -- Otherwise check in state.attributes
+            -- Otherwise check in state.attributes
             elseif state.attributes then
                 attribute_value = state.attributes[attribute_name]
             else
@@ -296,14 +292,3 @@ end
 
 return HomeAssistant
 
--- TODO:
-
--- elseif type(attribute_value) == "table" then
---     value_str = json.encode(attribute_value, { pretty = true })
-
--- elseif type(attribute_value) == "table" then
---     local parts = {}
---     for _, v in ipairs(attribute_value) do
---         table.insert(parts, tostring(v))
---     end
---     value_str = table.concat(parts, ", ")
