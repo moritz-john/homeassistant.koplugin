@@ -169,14 +169,14 @@ function HomeAssistant:buildMessage(entity, code, response, method)
     if code ~= 200 and code ~= 201 then
         return string.format(_(
                 "- - Error - -\n" ..
-                "Label: %s\n" ..
-                "Domain: %s\n" ..
-                "Service: %s\n" ..
-                "Response: %s"),
-            entity.label, self:getDomainandAction(entity), entity.action or "N/A", tostring(code)
+                "label: %s\n" ..
+                "domain: %s\n" ..
+                "action: %s\n" ..
+                "response: %s"),
+            entity.label, self:getDomainandAction(entity), entity.action or "n/a", tostring(code)
         ), nil
     end
-    -- on Success:
+    -- on Success ("POST"):
     if method == "POST" then
         return string.format(_(
                 "- - Success - -\n" ..
@@ -186,15 +186,92 @@ function HomeAssistant:buildMessage(entity, code, response, method)
             entity.label, self:getDomainandAction(entity), entity.action
         ), 5
     else
+        -- on Success ("GET"):
         local state = json.decode(response)
-        return string.format(_(
+
+        -- Build the base message
+        local message = string.format(_(
                 "- - Info - -\n" ..
                 "%s\n" ..
-                "Domain: %s\n" ..
-                "❯ State: %s\n"),
+                "domain: %s\n" ..
+                "state: %s\n"),
             entity.label, self:getDomainandAction(entity), state.state or "unknown"
-        ), nil
+        )
+
+        -- Extend the base message with attributes using the new function
+        message = message .. self:buildAttributeMessage(state, entity)
+
+        return message, nil
     end
+end
+
+--- Build attribute message string from decoded state and entity config
+function HomeAssistant:buildAttributeMessage(state, entity)
+    local attribute_message = ""
+
+    -- Check if entity.attributes are defined in config
+    if entity.attributes then
+        -- Make sure attributes is always a list
+        local attribute_list = entity.attributes
+        if type(attribute_list) == "string" then
+            attribute_list = { attribute_list } -- Convert single string to list
+        end
+
+        for _, attribute_name in ipairs(attribute_list) do
+            local attribute_value
+
+            -- Check if it's a top-level state property first
+            -- this alows us to access e.g. state.last_changed or state.last_updated
+            if state[attribute_name] then
+                attribute_value = state[attribute_name]
+                -- Otherwise check in state.attributes
+            elseif state.attributes then
+                attribute_value = state.attributes[attribute_name]
+            else
+                attribute_value = nil
+            end
+
+            -- Handle different types of attribute values
+            local value_str
+            if attribute_value == nil then
+                -- Handle attribute that don't exist in response
+                value_str = "null"
+            elseif type(attribute_value) == "boolean" then
+                -- Handle booleans
+                value_str = attribute_value and "true" or "false"
+            elseif type(attribute_value) == "function" then
+                -- Handle malformed responses or JSON decode errors (e.g. state.attributes.color_mode when light is turned off)
+                value_str = "null"
+            elseif type(attribute_value) == "table" then
+                -- Handle simple arrays or nested structures
+                local is_simple = true
+                for _, v in ipairs(attribute_value) do
+                    if type(v) == "table" then
+                        is_simple = false
+                        break
+                    end
+                end
+
+                if is_simple then
+                    -- Simple array like [255, 204, 0]
+                    local parts = {}
+                    for _, v in ipairs(attribute_value) do
+                        table.insert(parts, tostring(v))
+                    end
+                    value_str = table.concat(parts, ", ")
+                else
+                    -- Complex nested structure
+                    value_str = string.format("[%d items]", #attribute_value)
+                end
+            else
+                -- Handle strings, numbers, and any other types
+                value_str = tostring(attribute_value)
+            end
+            attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value_str)
+        end
+    end
+
+    return attribute_message
 end
 
 return HomeAssistant
