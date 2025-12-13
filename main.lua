@@ -98,7 +98,31 @@ function HomeAssistant:onActivateHAEvent(entity)
             ha_config.host, ha_config.port, domain, action)
 
         -- START: Build request_body
-        local build_request_body = { entity_id = entity.target }
+        local build_request_body = {}
+
+        -- Handle entity.target: can be string, array, or complex object
+        if type(entity.target) == "string" then
+            -- Simple string: target = "light.foo"
+            -- Becomes: { entity_id = "light.foo" }
+            build_request_body.entity_id = entity.target
+        elseif type(entity.target) == "table" then
+            -- Table needs to distinguish between array and key-value map
+            -- In Lua, arrays have numeric indices and length > 0
+            local is_array = (#entity.target > 0)
+
+            if is_array then
+                -- Array of entity IDs: target = { "light.foo", "light.bar" }
+                -- Becomes: { entity_id = { "light.foo", "light.bar" } }
+                build_request_body.entity_id = entity.target
+            else
+                -- Object format: target = { entity_id = {...} } or { area_id = "flur" }
+                -- Copy all keys directly (supports entity_id, area_id, device_id, label_id)
+                -- Note: Do not mix multiple target types (e.g., entity_id + area_id)
+                for k, v in pairs(entity.target) do
+                    build_request_body[k] = v
+                end
+            end
+        end
 
         -- Add additional Home Assistant data attributes to the service call
         if entity.data then
