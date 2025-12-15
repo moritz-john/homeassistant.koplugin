@@ -8,34 +8,52 @@ return {
     -- Home Assistant Entity configuration
     -- Documentation: https://github.com/moritz-john/homeassistant.koplugin#getting-started
     entities = {
+        -- Performe Actions:
         {
-            id = "all",                      -- Entity ID
-            domain = "light",                -- Required because Entity ID "all" has no domain
-            service = "turn_off",            -- Call HA service (omit to read state instead)
-            label = "All Lights → turn_off", -- Display name
+            label = "All Switches → turn_off",
+            action = "switch.turn_off",
+            target = "all",
         },
         {
-            id = "light.reading_lamp",
-            service = "toggle",
-            label = "Reading Lamp → toggle",
+            label = "Reading Lamp → turn_on",
+            action = "light.turn_off",
+            target = "light.reading_lamp",
         },
         {
-            id = "switch.coffee_machine",
-            service = "turn_on",
-            label = "♨ Coffee Time",
+            label = "Evening Mood Lights",
+            action = "light.turn_on",
+            target = {
+                label_id = "evening_mood",
+            },
+            data = {
+                brightness = 120,
+                color_name = "warmwhite",
+            },
         },
         {
-            id = "sensor.temperature_outside",
-            -- NO <service> → read the entity state instead
-            label = "Show Temperature Outside",
+            label = "Play Jazz",
+            action = "media_player.play_media",
+            target = "media_player.living_room_sonos",
+            data = {
+                media_content_type = "music",
+                media_content_id = "https://open.spotify.com/playlist/37i9dQZF1DXbITWG1ZJKYt",
+            },
         },
         {
-            id = "light.living_room",
-            label = "Light in living room left on?",
+            label = "⏯ Play/Pause",
+            action = "media_player.media_play_pause",
+            target = "media_player.living_room_sonos",
+        },
+        -- Get Entity States:
+        {
+            label = "Outside Temperature",
+            target = "sensor.temperature_outside",
+            attributes = { "state", "unit_of_measurement" },
         },
         {
-            id = "binary_sensor.front_door",
-            label = "Is the door closed?",
+            label = "Is the Front Door Closed?",
+            target = "binary_sensor.front_door",
+            attributes = { "state", "last_changed" },
         },
     },
 }
