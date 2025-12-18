@@ -6,7 +6,7 @@ return {
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 
     -- Home Assistant Entity configuration
-    -- Documentation: https://github.com/moritz-john/homeassistant.koplugin#getting-started
+    -- Documentation: https://github.com/moritz-john/homeassistant.koplugin
     entities = {
         -- Performe Actions:
         {
@@ -22,9 +22,7 @@ return {
         {
             label = "Evening Mood Lights",
             action = "light.turn_on",
-            target = {
-                label_id = "evening_mood",
-            },
+            target = { label_id = "evening_mood" },
             data = {
                 brightness = 120,
                 color_name = "warmwhite",
