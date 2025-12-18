@@ -16,7 +16,7 @@ return {
         },
         {
             label = "Reading Lamp → turn_on",
-            action = "light.turn_off",
+            action = "light.turn_on",
             target = "light.reading_lamp",
         },
         {
