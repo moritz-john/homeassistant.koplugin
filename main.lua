@@ -14,9 +14,9 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 local json = require("json")
 
---- Icon glyph definitions
+--- Font Glyph definitions
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
-local Icons = {
+local Glyphs = {
     ha = "\u{EECE}",
     -- download_network = "\u{EDF2}",
     -- help_network = "\u{EDF3}",
@@ -66,7 +66,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     end
 
     menu_items.homeassistant = {
-        text = _(Icons.ha .. " Home Assistant"),
+        text = _(Glyphs.ha .. " Home Assistant"),
         sorting_hint = "tools",
         sub_item_table = sub_items,
     }
@@ -215,7 +215,7 @@ end
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, code)
     return string.format(_(
-            "𝙀𝙧𝙧𝙤𝙧\n" ..
+            "𝙀𝙧𝙧𝙤𝙧_:\n" ..
             "label: %s\n" ..
             "domain: %s\n" ..
             "action: %s\n" ..
@@ -227,8 +227,8 @@ end
 --- Build success message for POST requests
 function HomeAssistant:buildSuccessPostMessage(entity)
     return string.format(_(
-            "𝘗𝘖𝘚𝘛 𝘙𝘦𝘲𝘶𝘦𝘴𝘵\n" ..
-            "⏵ %s\n\n" ..
+            "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘢𝘤𝘵𝘪𝘰𝘯_:\n" ..
+            "%s\n\n" ..
             "domain: %s\n" ..
             "action: %s"),
         entity.label, self:getDomainandAction(entity), entity.action
@@ -239,8 +239,8 @@ end
 function HomeAssistant:buildSuccessGetMessage(entity, response)
     -- Build the base message
     local message = string.format(_(
-            "𝘎𝘌𝘛 𝘙𝘦𝘲𝘶𝘦𝘴𝘵\n" ..
-            "⏵ %s\n\n"),
+            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘴𝘵𝘢𝘵𝘦_:\n" ..
+            "%s\n\n"),
         entity.label
     )
 
