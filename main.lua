@@ -256,46 +256,49 @@ function HomeAssistant:buildSuccessGetMessage(entity, response)
         entity.label
     )
 
-    -- Decode response and build attribute message inline
+    -- 1. Decode the response body
     local state = json.decode(response)
     local attribute_message = ""
 
-    -- Check if entity.attributes are defined in config
-    if entity.attributes then
-        -- Make sure attribute_list is always a list
+    -- 2. Check if attributes are configured in the entity
+    if not entity.attributes then
+        -- No attributes configured, append the placeholder line
+        attribute_message = attribute_message .. "Add attributes to this entity in `config.lua`.\n"
+    else
+        -- 3. Prepare the attribute list (ensure it's always a table)
         local attribute_list = entity.attributes
         if type(attribute_list) == "string" then
             attribute_list = { attribute_list } -- Convert single string to list
         end
 
+        -- 4. Iterate and extract each configured attribute value
         for _, attribute_name in ipairs(attribute_list) do
             local attribute_value
 
-            -- Check if it's a top-level state property first
-            -- this allows us to access e.g. state.last_changed or state.last_updated
+            -- Try to access attribute:
+            -- a) Check top-level state property (e.g., 'state', 'last_changed')
             if state[attribute_name] then
                 attribute_value = state[attribute_name]
-            -- Otherwise check in state.attributes
+                -- b) Check state.attributes table
             elseif state.attributes then
                 attribute_value = state.attributes[attribute_name]
             else
+                -- c) Attribute not found
                 attribute_value = nil
             end
 
-            -- Handle different types of attribute values
+            -- 5. Handle different types of attribute values for formatting
             local value_string
-            if attribute_value == nil then
-                -- Handle attribute that don't exist in response
+            if attribute_value == nil or type(attribute_value) == "function" then
+                -- Handle non-existent or malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
                 value_string = "null"
             elseif type(attribute_value) == "boolean" then
                 -- Handle booleans
                 value_string = attribute_value and "true" or "false"
-            elseif type(attribute_value) == "function" then
-                -- Handle malformed responses or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
-                value_string = "null"
             elseif type(attribute_value) == "table" then
-                -- Handle simple arrays or complex nested structures
+                -- Handle arrays and complex structures
                 local is_simple = true
+                -- Check for nested tables (complex structure)
                 for _, v in ipairs(attribute_value) do
                     if type(v) == "table" then
                         is_simple = false
@@ -304,7 +307,7 @@ function HomeAssistant:buildSuccessGetMessage(entity, response)
                 end
 
                 if is_simple then
-                    -- Simple array like [255, 204, 0]
+                    -- Simple array (e.g., [255, 204, 0])
                     local parts = {}
                     for _, v in ipairs(attribute_value) do
                         table.insert(parts, tostring(v))
@@ -318,13 +321,13 @@ function HomeAssistant:buildSuccessGetMessage(entity, response)
                 -- Handle strings, numbers, and any other types
                 value_string = tostring(attribute_value)
             end
+
+            -- 6. Append the formatted attribute line
             attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value_string)
         end
-    else
-        -- No attributes configured, append the placeholder line
-        attribute_message = attribute_message .. "Add attributes to this entity in `config.lua`.\n"
     end
 
+    -- Append the built attribute message to the main message
     message = message .. attribute_message
 
     return message, nil
