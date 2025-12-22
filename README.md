@@ -76,7 +76,7 @@ return {
 
 ### Adding Home Assistant entities
 
-Inside the `entries` table in `config.lua`, you can define two types of items:
+Inside the `entities` table in `config.lua`, you can define two types of items:
 
 | Type       | Purpose                                 | Required Fields                 | Optional |
 | :--------- | :-------------------------------------- | :------------------------------ | :------- |
