@@ -296,27 +296,12 @@ function HomeAssistant:buildSuccessGetMessage(entity, response)
                 -- Handle booleans
                 value_string = attribute_value and "true" or "false"
             elseif type(attribute_value) == "table" then
-                -- Handle arrays and complex structures
-                local is_simple = true
-                -- Check for nested tables (complex structure)
+                -- Handle simple arrays (e.g., [255, 204, 0])
+                local parts = {}
                 for _, v in ipairs(attribute_value) do
-                    if type(v) == "table" then
-                        is_simple = false
-                        break
-                    end
+                    table.insert(parts, tostring(v))
                 end
-
-                if is_simple then
-                    -- Simple array (e.g., [255, 204, 0])
-                    local parts = {}
-                    for _, v in ipairs(attribute_value) do
-                        table.insert(parts, tostring(v))
-                    end
-                    value_string = table.concat(parts, ", ")
-                else
-                    -- Complex nested structure
-                    value_string = string.format("[%d items]", #attribute_value)
-                end
+                value_string = table.concat(parts, ", ")
             else
                 -- Handle strings, numbers, and any other types
                 value_string = tostring(attribute_value)
