@@ -210,10 +210,10 @@ function HomeAssistant:buildMessage(entity, code, response, method)
         -- on Success:
     elseif method == "POST" then
         -- "POST":
-        messageText, timeout = self:buildSuccessPostMessage(entity)
+        messageText, timeout = self:buildActionMessage(entity)
     else
         -- "GET":
-        messageText, timeout = self:buildSuccessGetMessage(entity, response)
+        messageText, timeout = self:buildStateMessage(entity, response)
     end
 
     -- Show message box
@@ -236,8 +236,8 @@ function HomeAssistant:buildErrorMessage(entity, code)
     ), nil
 end
 
---- Build success message for POST requests
-function HomeAssistant:buildSuccessPostMessage(entity)
+--- Build success message for actions / POST requests
+function HomeAssistant:buildActionMessage(entity)
     return string.format(_(
             "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘢𝘤𝘵𝘪𝘰𝘯_:\n" ..
             "%s\n\n" ..
@@ -247,8 +247,8 @@ function HomeAssistant:buildSuccessPostMessage(entity)
     ), 5
 end
 
---- Build success message for GET requests
-function HomeAssistant:buildSuccessGetMessage(entity, response)
+--- Build success message for state / GET requests
+function HomeAssistant:buildStateMessage(entity, response)
     -- Build the base message
     local message = string.format(_(
             "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘴𝘵𝘢𝘵𝘦_:\n" ..
