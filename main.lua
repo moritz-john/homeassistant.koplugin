@@ -256,14 +256,7 @@ function HomeAssistant:buildSuccessGetMessage(entity, response)
         entity.label
     )
 
-    -- Pass the raw response string to the attribute builder
-    message = message .. self:buildAttributeMessage(response, entity)
-
-    return message, nil
-end
-
---- Build attribute message string from decoded state and entity config
-function HomeAssistant:buildAttributeMessage(response, entity)
+    -- Decode response and build attribute message inline
     local state = json.decode(response)
     local attribute_message = ""
 
@@ -282,7 +275,7 @@ function HomeAssistant:buildAttributeMessage(response, entity)
             -- this allows us to access e.g. state.last_changed or state.last_updated
             if state[attribute_name] then
                 attribute_value = state[attribute_name]
-                -- Otherwise check in state.attributes
+            -- Otherwise check in state.attributes
             elseif state.attributes then
                 attribute_value = state.attributes[attribute_name]
             else
@@ -332,7 +325,9 @@ function HomeAssistant:buildAttributeMessage(response, entity)
         attribute_message = attribute_message .. "Add attributes to this entity in `config.lua`.\n"
     end
 
-    return attribute_message
+    message = message .. attribute_message
+
+    return message, nil
 end
 
 return HomeAssistant
