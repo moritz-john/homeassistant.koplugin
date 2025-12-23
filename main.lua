@@ -292,9 +292,6 @@ function HomeAssistant:buildStateMessage(entity, response)
             if attribute_value == nil or type(attribute_value) == "function" then
                 -- Handle non-existent or malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
                 value_string = "null"
-            elseif type(attribute_value) == "boolean" then
-                -- Handle booleans
-                value_string = attribute_value and "true" or "false"
             elseif type(attribute_value) == "table" then
                 -- Handle simple arrays (e.g., [255, 204, 0])
                 local parts = {}
