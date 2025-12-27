@@ -117,7 +117,7 @@ function HomeAssistant:onActivateHAEvent(entity)
 
         -- Add return_response query parameter if needed
         local query_params = ""
-        if entity.response_variable then
+        if entity.response_data then
             query_params = "?return_response=true"
         end
 
@@ -170,10 +170,10 @@ function HomeAssistant:onActivateHAEvent(entity)
     end
 
     -- Perform the request
-    local code, response = self:performRequest(url, method, request_body)
+    local code, api_response = self:performRequest(url, method, request_body)
 
     -- Build and show message
-    self:buildMessage(entity, code, response, method)
+    self:buildMessage(entity, code, api_response, method)
 end
 
 --- Send a REST API request to the Home Assistant API
@@ -207,7 +207,7 @@ function HomeAssistant:performRequest(url, method, request_body)
 end
 
 --- Build user-facing message based on API response
-function HomeAssistant:buildMessage(entity, code, response, method)
+function HomeAssistant:buildMessage(entity, code, api_response, method)
     local messageText, timeout
 
     -- on Error:
@@ -215,14 +215,14 @@ function HomeAssistant:buildMessage(entity, code, response, method)
         messageText, timeout = self:buildErrorMessage(entity, code)
         -- on Success:
         -- with Response Data:
-    elseif entity.response_variable and method == "POST" then
-        messageText, timeout = self:buildResponseDataMessage(entity, response)
+    elseif entity.response_data and method == "POST" then
+        messageText, timeout = self:buildResponseDataMessage(entity, api_response)
     elseif method == "POST" then
         -- Action/"POST":
         messageText, timeout = self:buildActionMessage(entity)
     else
         -- State/"GET":
-        messageText, timeout = self:buildStateMessage(entity, response)
+        messageText, timeout = self:buildStateMessage(entity, api_response)
     end
 
     -- Show message box
@@ -257,7 +257,7 @@ function HomeAssistant:buildActionMessage(entity)
 end
 
 --- Build success message for state / GET requests
-function HomeAssistant:buildStateMessage(entity, response)
+function HomeAssistant:buildStateMessage(entity, api_response)
     -- Build the base message
     local base_message = string.format(_(
             "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘴𝘵𝘢𝘵𝘦_:\n" ..
@@ -271,7 +271,7 @@ function HomeAssistant:buildStateMessage(entity, response)
     end
 
     -- Parse the response
-    local state = json.decode(response)
+    local state = json.decode(api_response)
 
     -- Ensure attributes is a table (convert single string if needed)
     local attributes = entity.attributes
@@ -315,8 +315,8 @@ function HomeAssistant:formatAttributeValue(value)
     end
 end
 
---- Build message for responses with response_variable
-function HomeAssistant:buildResponseDataMessage(entity, response)
+--- Build message for responses with response_data
+function HomeAssistant:buildResponseDataMessage(entity, api_response)
     -- Build the base message
     local base_message = string.format(_(
             "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦_:\n" ..
@@ -328,7 +328,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response)
 
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
-        full_message = base_message .. self:formatTodoItems(response)
+        full_message = base_message .. self:formatTodoItems(api_response)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback for unknown action types
@@ -339,10 +339,9 @@ function HomeAssistant:buildResponseDataMessage(entity, response)
 end
 
 --- Format todo list items
-function HomeAssistant:formatTodoItems(response)
+function HomeAssistant:formatTodoItems(api_response)
     -- Decode the response body
-    local response_data = json.decode(response)
-    local service_response = response_data.service_response
+    local service_response = json.decode(api_response).service_response
     local todo_message = ""
 
     -- service_response is a map where:
