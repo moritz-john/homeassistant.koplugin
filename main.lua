@@ -358,10 +358,16 @@ function HomeAssistant:formatTodoItems(api_response)
                 return "Todo list is empty\n"
             end
 
-            -- Convert each todo item into "[x] Item" or "[ ] Item" format
+            -- Convert each todo item into "[x] Item" or "[ ] Item"
             for _, item in ipairs(items) do
                 local is_completed = (item.status == "completed")
                 local checkbox = is_completed and tostring(Glyphs.checkbox_marked) or tostring(Glyphs.checkbox_blank)
+
+                -- Draft: also show todo item description
+                -- local description = ""
+                -- if item.description then
+                --     description = item.description .. "\n"
+                -- end
 
                 todo_message = todo_message .. string.format("%s %s\n", checkbox, tostring(item.summary))
             end
