@@ -115,8 +115,14 @@ function HomeAssistant:onActivateHAEvent(entity)
         method = "POST"
         local domain, action = self:getDomainandAction(entity)
 
-        url = string.format("http://%s:%d/api/services/%s/%s",
-            ha_config.host, ha_config.port, domain, action)
+        -- Add return_response query parameter if needed
+        local query_params = ""
+        if entity.response_variable then
+            query_params = "?return_response=true"
+        end
+
+        url = string.format("http://%s:%d/api/services/%s/%s%s",
+            ha_config.host, ha_config.port, domain, action, query_params)
 
         -- START: Build request_body
         local build_request_body = {}
@@ -208,11 +214,14 @@ function HomeAssistant:buildMessage(entity, code, response, method)
     if code ~= 200 and code ~= 201 then
         messageText, timeout = self:buildErrorMessage(entity, code)
         -- on Success:
+        -- with Response Data:
+    elseif entity.response_variable and method == "POST" then
+        messageText, timeout = self:buildResponseDataMessage(entity, response)
     elseif method == "POST" then
-        -- "POST":
+        -- Action/"POST":
         messageText, timeout = self:buildActionMessage(entity)
     else
-        -- "GET":
+        -- State/"GET":
         messageText, timeout = self:buildStateMessage(entity, response)
     end
 
@@ -306,6 +315,63 @@ function HomeAssistant:formatAttributeValue(value)
     end
 end
 
+--- Build message for responses with response_variable
+function HomeAssistant:buildResponseDataMessage(entity, response)
+    -- Build the base message
+    local base_message = string.format(_(
+            "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦_:\n" ..
+            "%s\n\n"),
+        entity.label
+    )
 
+    local full_message = ""
+
+    -- Handle different kind of actions which use "?return_response"
+    if entity.action == "todo.get_items" then
+        full_message = base_message .. self:formatTodoItems(response)
+    else
+        -- TODO: Add response data support for other entity types
+        -- Fallback for unknown action types
+        full_message = base_message .. "Only 'todo.get_items' is supported for now.\n"
+    end
+
+    return full_message, nil
+end
+
+--- Format todo list items
+function HomeAssistant:formatTodoItems(response)
+    -- Decode the response body
+    local response_data = json.decode(response)
+    local service_response = response_data.service_response
+    local todo_message = ""
+
+    -- service_response is a map where:
+    --   keys = entity IDs (e.g., "todo.shopping_list")
+    --   values = objects containing an "items" array
+    for _, entity in pairs(service_response) do
+        local items = entity.items
+
+        -- Validate that items is a table
+        if type(items) == "table" then
+            -- Handle empty list
+            if #items == 0 then
+                return "Todo list is empty\n"
+            end
+
+            -- Convert each todo item into "Summary: [x]" or "Summary: [ ]" format
+            for _, item in ipairs(items) do
+                local is_completed = (item.status == "completed")
+                local checkbox = is_completed and "[x]" or "[ ]"
+
+                todo_message = todo_message .. string.format("%s %s\n", checkbox, tostring(item.summary))
+            end
+
+            -- Stop after the first entity's items are processed
+            break
+        end
+    end
+
+    return todo_message
+end
 
 return HomeAssistant
