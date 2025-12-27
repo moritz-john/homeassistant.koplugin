@@ -95,15 +95,6 @@ function HomeAssistant:getDomainandAction(entity)
     end
 end
 
---- TODO: currently not in use
--- function HomeAssistant:stringifyTarget(target)
---     if type(target) == "table" then
---         return table.concat(target, ", ")
---     else
---         return tostring(target or "N/A")
---     end
--- end
-
 --- Handle ActivateHAEvent
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
