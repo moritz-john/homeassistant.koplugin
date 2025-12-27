@@ -32,9 +32,6 @@ local Glyphs = {
     ha = "\u{EECE}",
     checkbox_blank = "\u{E830}",
     checkbox_marked = "\u{E834}",
-    -- download_network = "\u{EDF2}",
-    -- help_network = "\u{EDF3}",
-    -- upload_network = "\u{EDF4}",
 }
 
 local HomeAssistant = WidgetContainer:extend {
