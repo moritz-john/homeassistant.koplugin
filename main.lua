@@ -17,7 +17,7 @@ local lfs = require("libs/libkoreader-lfs")
 local json = require("json")
 
 --- InfoMessage Icon Check
---- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
+-- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
 local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
 local file_mode = lfs.attributes(icon_path, "mode")
 local icon_value = nil
