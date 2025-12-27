@@ -130,7 +130,6 @@ function HomeAssistant:onActivateHAEvent(entity)
                 build_request_body.entity_id = entity.target
             else
                 -- target = { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" } etc.
-                -- becomes: build_request_body["entity_id"] = { "light.foo", "light.bar" }
                 for k, v in pairs(entity.target) do
                     build_request_body[k] = v
                 end
