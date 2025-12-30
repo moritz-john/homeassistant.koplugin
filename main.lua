@@ -167,24 +167,19 @@ function HomeAssistant:performRequest(url, method, request_body)
     local ltn12 = require("ltn12")
     http.TIMEOUT = 6
 
+    -- Only POST requests include a request body
     local headers = {
         ["Authorization"] = "Bearer " .. ha_config.token,
+        ["Content-Type"] = request_body and "application/json" or nil,
+        ["Content-Length"] = request_body and tostring(#request_body) or nil
     }
-    local source
     local response_body = {}
-
-    -- Only POST requests include a request body
-    if request_body then
-        headers["Content-Type"] = "application/json"
-        headers["Content-Length"] = tostring(#request_body)
-        source = ltn12.source.string(request_body)
-    end
 
     local res, code = http.request {
         url = url,
         method = method,
         headers = headers,
-        source = source,
+        source = request_body and ltn12.source.string(request_body) or nil,
         sink = ltn12.sink.table(response_body)
     }
 
