@@ -221,11 +221,12 @@ end
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, code)
     return string.format(_(
-            "𝙀𝙧𝙧𝙤𝙧_:\n" ..
-            "label: %s\n" ..
+            "𝙀𝙧𝙧𝙤𝙧\n" ..
+            "%s\n\n" ..
             "domain: %s\n" ..
             "action: %s\n" ..
-            "response: %s"),
+            "⏵ response:\n" ..
+            "%s"),
         entity.label, self:getDomainandAction(entity), entity.action or "n/a", tostring(code)
     ), nil
 end
@@ -233,7 +234,7 @@ end
 --- Build success message for actions / POST requests
 function HomeAssistant:buildActionMessage(entity)
     return string.format(_(
-            "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘢𝘤𝘵𝘪𝘰𝘯_:\n" ..
+            "𝘗𝘦𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯\n" ..
             "%s\n\n" ..
             "domain: %s\n" ..
             "action: %s"),
@@ -245,7 +246,7 @@ end
 function HomeAssistant:buildStateMessage(entity, api_response)
     -- Build the base message
     local base_message = string.format(_(
-            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘴𝘵𝘢𝘵𝘦_:\n" ..
+            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦\n" ..
             "%s\n\n"),
         entity.label
     )
@@ -306,7 +307,7 @@ end
 function HomeAssistant:buildResponseDataMessage(entity, api_response)
     -- Build the base message
     local base_message = string.format(_(
-            "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦_:\n" ..
+            "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢\n" ..
             "%s\n\n"),
         entity.label
     )
@@ -319,7 +320,7 @@ function HomeAssistant:buildResponseDataMessage(entity, api_response)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
-        full_message = base_message .. "Only 'todo.get_items' is supported for now.\n"
+        full_message = base_message .. "Configuration error.\nCheck the documentation 'response data' section"
     end
 
     return full_message, nil
