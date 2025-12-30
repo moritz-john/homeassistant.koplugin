@@ -332,11 +332,12 @@ function HomeAssistant:formatTodoItems(api_response)
     local service_response = json.decode(api_response).service_response
     local todo_message = ""
 
-    -- service_response is a map where:
-    --   keys = entity IDs (e.g., "todo.shopping_list")
-    --   values = objects containing an "items" array
-    for _, entity in pairs(service_response) do
-        local items = entity.items
+    -- Iterate over service_response (key: entity_id -> value: todo_response)
+    -- We are using a for loop instead of 'local items = service_response[entity.target].items'
+    -- Because we might want to show more than one To-do list in the future
+    -- Currently we break the loop after the first target/entity_id
+    for _, todo_response in pairs(service_response) do
+        local items = todo_response.items
 
         -- Validate that items is a table
         if type(items) == "table" then
