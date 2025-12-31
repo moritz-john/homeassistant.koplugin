@@ -15,6 +15,7 @@
 - Action support with custom data attributes e.g.:  
   - **light.turn_on** with `brightness` and `color` 
   - **media_player.play_media** with `media_content_id` & `type`
+- Actions with response data (currently `todo.get_items`)
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
   - **sensor.temperature_outside**: `state`, `unit_of_measurement`
@@ -155,6 +156,34 @@ You can either use one single line or indentation:
     },
 },
 ```
+
+### Actions with Response Data
+
+Some Home Assistant actions can return response data.  
+The plugin currently supports this for [`todo.get_items`](https://www.home-assistant.io/integrations/todo/#action-todoget_items).
+
+To enable this, add the `response_data` field to your configuration.  
+This feature works with a single target only.
+
+```lua
+{
+    label = "\u{EE54} Shopping List",
+    action = "todo.get_items",
+    target = "todo.shopping_list",
+    response_data = true, 
+    data = {
+        -- status = "needs_action"
+    },
+},
+```
+
+<img src="assets/response_data.png" style="width:50%; height:auto;" />
+
+<br>
+
+> [!NOTE]
+> This is an opinionated feature. It assumes most users are on Kindle or Kobo devices with limited screen space. For this reason, task descriptions are intentionally not shown.
+
 
 ### Getting Entity States (Queries)
 

@@ -17,7 +17,7 @@ local lfs = require("libs/libkoreader-lfs")
 local json = require("json")
 
 --- InfoMessage Icon Check
---- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
+-- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
 local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
 local file_mode = lfs.attributes(icon_path, "mode")
 local icon_value = nil
@@ -26,13 +26,12 @@ if file_mode == "file" then
     icon_value = "homeassistant"
 end
 
---- Font Glyph definitions
+--- Font glyph definitions
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
 local Glyphs = {
     ha = "\u{EECE}",
-    -- download_network = "\u{EDF2}",
-    -- help_network = "\u{EDF3}",
-    -- upload_network = "\u{EDF4}",
+    checkbox_blank = "\u{E830}",
+    checkbox_marked = "\u{E834}",
 }
 
 local HomeAssistant = WidgetContainer:extend {
@@ -96,15 +95,6 @@ function HomeAssistant:getDomainandAction(entity)
     end
 end
 
---- TODO: currently not in use
--- function HomeAssistant:stringifyTarget(target)
---     if type(target) == "table" then
---         return table.concat(target, ", ")
---     else
---         return tostring(target or "N/A")
---     end
--- end
-
 --- Handle ActivateHAEvent
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
@@ -115,33 +105,32 @@ function HomeAssistant:onActivateHAEvent(entity)
         method = "POST"
         local domain, action = self:getDomainandAction(entity)
 
-        url = string.format("http://%s:%d/api/services/%s/%s",
-            ha_config.host, ha_config.port, domain, action)
+        -- Add return_response query parameter if needed
+        local query_params = ""
+        if entity.response_data then
+            query_params = "?return_response=true"
+        end
+
+        url = string.format("http://%s:%d/api/services/%s/%s%s",
+            ha_config.host, ha_config.port, domain, action, query_params)
 
         -- START: Build request_body
         local build_request_body = {}
 
-        -- Handle entity.target: can be string, array, or complex object
-        if type(entity.target) == "string" then
-            -- Simple string: target = "light.foo"
-            -- Becomes: { entity_id = "light.foo" }
-            build_request_body.entity_id = entity.target
-        elseif type(entity.target) == "table" then
-            -- Table needs to distinguish between array and key-value map
-            -- In Lua, arrays have numeric indices and length > 0
-            local is_array = (#entity.target > 0)
+        -- Check if target is a List (Array)
+        -- #table > 0 as check for a list of items
+        local is_list = (type(entity.target) == "table" and #entity.target > 0)
 
-            if is_array then
-                -- Array of entity IDs: target = { "light.foo", "light.bar" }
-                -- Becomes: { entity_id = { "light.foo", "light.bar" } }
-                build_request_body.entity_id = entity.target
-            else
-                -- Object format: target = { entity_id = {...} } or { area_id = "flur" }
-                -- Copy all keys directly (supports entity_id, area_id, device_id, label_id)
-                -- Note: Do not mix multiple target types (e.g., entity_id + area_id)
-                for k, v in pairs(entity.target) do
-                    build_request_body[k] = v
-                end
+        -- Case 1: String or List -> Assign to 'entity_id'
+        -- e.g. "light.foo" or { "light.a", "light.b" }
+        if type(entity.target) == "string" or is_list then
+            build_request_body.entity_id = entity.target
+
+            -- Case 2: Map (Key-Value) -> Merge into body
+            -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
+        elseif type(entity.target) == "table" then
+            for k, v in pairs(entity.target) do
+                build_request_body[k] = v
             end
         end
 
@@ -164,36 +153,31 @@ function HomeAssistant:onActivateHAEvent(entity)
     end
 
     -- Perform the request
-    local code, response = self:performRequest(url, method, request_body)
+    local code, api_response = self:performRequest(url, method, request_body)
 
     -- Build and show message
-    self:buildMessage(entity, code, response, method)
+    self:buildMessage(entity, code, api_response, method)
 end
 
---- Send a REST API request to the Home Assistant API
+--- Executes a REST request to Home Assistant
 function HomeAssistant:performRequest(url, method, request_body)
     local http = require("socket.http")
     local ltn12 = require("ltn12")
     http.TIMEOUT = 6
 
+    -- Only POST requests include a request body
     local headers = {
         ["Authorization"] = "Bearer " .. ha_config.token,
+        ["Content-Type"] = request_body and "application/json" or nil,
+        ["Content-Length"] = request_body and tostring(#request_body) or nil
     }
-    local source
     local response_body = {}
-
-    -- Only POST requests include a request body
-    if request_body then
-        headers["Content-Type"] = "application/json"
-        headers["Content-Length"] = tostring(#request_body)
-        source = ltn12.source.string(request_body)
-    end
 
     local res, code = http.request {
         url = url,
         method = method,
         headers = headers,
-        source = source,
+        source = request_body and ltn12.source.string(request_body) or nil,
         sink = ltn12.sink.table(response_body)
     }
 
@@ -201,19 +185,22 @@ function HomeAssistant:performRequest(url, method, request_body)
 end
 
 --- Build user-facing message based on API response
-function HomeAssistant:buildMessage(entity, code, response, method)
+function HomeAssistant:buildMessage(entity, code, api_response, method)
     local messageText, timeout
 
     -- on Error:
     if code ~= 200 and code ~= 201 then
         messageText, timeout = self:buildErrorMessage(entity, code)
         -- on Success:
+        -- with Response Data:
+    elseif entity.response_data and method == "POST" then
+        messageText, timeout = self:buildResponseDataMessage(entity, api_response)
     elseif method == "POST" then
-        -- "POST":
-        messageText, timeout = self:buildSuccessPostMessage(entity)
+        -- Action/"POST":
+        messageText, timeout = self:buildActionMessage(entity)
     else
-        -- "GET":
-        messageText, timeout = self:buildSuccessGetMessage(entity, response)
+        -- State/"GET":
+        messageText, timeout = self:buildStateMessage(entity, api_response)
     end
 
     -- Show message box
@@ -227,19 +214,20 @@ end
 --- Build error message
 function HomeAssistant:buildErrorMessage(entity, code)
     return string.format(_(
-            "𝙀𝙧𝙧𝙤𝙧_:\n" ..
-            "label: %s\n" ..
+            "𝙀𝙧𝙧𝙤𝙧\n" ..
+            "%s\n\n" ..
             "domain: %s\n" ..
             "action: %s\n" ..
-            "response: %s"),
+            "⏵ response:\n" ..
+            "%s"),
         entity.label, self:getDomainandAction(entity), entity.action or "n/a", tostring(code)
     ), nil
 end
 
---- Build success message for POST requests
-function HomeAssistant:buildSuccessPostMessage(entity)
+--- Build success message for actions / POST requests
+function HomeAssistant:buildActionMessage(entity)
     return string.format(_(
-            "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘢𝘤𝘵𝘪𝘰𝘯_:\n" ..
+            "𝘗𝘦𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯\n" ..
             "%s\n\n" ..
             "domain: %s\n" ..
             "action: %s"),
@@ -247,92 +235,132 @@ function HomeAssistant:buildSuccessPostMessage(entity)
     ), 5
 end
 
---- Build success message for GET requests
-function HomeAssistant:buildSuccessGetMessage(entity, response)
+--- Build success message for state / GET requests
+function HomeAssistant:buildStateMessage(entity, api_response)
     -- Build the base message
-    local message = string.format(_(
-            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘴𝘵𝘢𝘵𝘦_:\n" ..
+    local base_message = string.format(_(
+            "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦\n" ..
             "%s\n\n"),
         entity.label
     )
 
-    -- Pass the raw response string to the attribute builder
-    message = message .. self:buildAttributeMessage(response, entity)
-
-    return message, nil
-end
-
---- Build attribute message string from decoded state and entity config
-function HomeAssistant:buildAttributeMessage(response, entity)
-    local state = json.decode(response)
-    local attribute_message = ""
-
-    -- Check if entity.attributes are defined in config
-    if entity.attributes then
-        -- Make sure attribute_list is always a list
-        local attribute_list = entity.attributes
-        if type(attribute_list) == "string" then
-            attribute_list = { attribute_list } -- Convert single string to list
-        end
-
-        for _, attribute_name in ipairs(attribute_list) do
-            local attribute_value
-
-            -- Check if it's a top-level state property first
-            -- this allows us to access e.g. state.last_changed or state.last_updated
-            if state[attribute_name] then
-                attribute_value = state[attribute_name]
-                -- Otherwise check in state.attributes
-            elseif state.attributes then
-                attribute_value = state.attributes[attribute_name]
-            else
-                attribute_value = nil
-            end
-
-            -- Handle different types of attribute values
-            local value_string
-            if attribute_value == nil then
-                -- Handle attribute that don't exist in response
-                value_string = "null"
-            elseif type(attribute_value) == "boolean" then
-                -- Handle booleans
-                value_string = attribute_value and "true" or "false"
-            elseif type(attribute_value) == "function" then
-                -- Handle malformed responses or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
-                value_string = "null"
-            elseif type(attribute_value) == "table" then
-                -- Handle simple arrays or complex nested structures
-                local is_simple = true
-                for _, v in ipairs(attribute_value) do
-                    if type(v) == "table" then
-                        is_simple = false
-                        break
-                    end
-                end
-
-                if is_simple then
-                    -- Simple array like [255, 204, 0]
-                    local parts = {}
-                    for _, v in ipairs(attribute_value) do
-                        table.insert(parts, tostring(v))
-                    end
-                    value_string = table.concat(parts, ", ")
-                else
-                    -- Complex nested structure
-                    value_string = string.format("[%d items]", #attribute_value)
-                end
-            else
-                -- Handle strings, numbers, and any other types
-                value_string = tostring(attribute_value)
-            end
-            attribute_message = attribute_message .. string.format("%s: %s\n", attribute_name, value_string)
-        end
-    else
-        -- No attributes configured, append the placeholder line
-        attribute_message = attribute_message .. "Add attributes to this entity in `config.lua`.\n"
+    -- If no attributes are configured in config.lua, show helper text
+    if not entity.attributes then
+        return base_message .. "Add attributes to this entity in `config.lua`.\n", nil
     end
 
-    return attribute_message
+    -- Parse response
+    local state = json.decode(api_response)
+
+    -- Ensure attribute(s) in confug.lua are a table (convert single string if needed)
+    local attributes = entity.attributes
+    if type(attributes) == "string" then
+        attributes = { attributes }
+    end
+
+    local attribute_message = ""
+
+    -- Iterate through user-configured attribute names from config.lua and match against API response
+    for _, name in ipairs(attributes) do
+        -- First check state[attribute_name] (e.g., state.state, state.last_changed)
+        -- Then check state.attributes[attribute_name] (e.g., state.attributes.brightness)
+        local attribute_value = state[name]
+            or (state.attributes and state.attributes[name])
+
+        -- Handle attribute value formatting
+        local value = self:formatAttributeValue(attribute_value)
+        attribute_message = attribute_message .. string.format("%s: %s\n", name, value)
+    end
+
+    local full_message = base_message .. attribute_message
+    return full_message, nil
+end
+
+-- Helper function to format any state attribute value into a string
+function HomeAssistant:formatAttributeValue(value)
+    local value_type = type(value)
+
+    if value == nil or value_type == "function" then
+        -- Handle non-existent, malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
+        return "null"
+    elseif value_type == "table" then
+        -- Handle simple arrays/tables (e.g., [255, 204, 0])
+        local parts = {}
+        for _, v in ipairs(value) do
+            table.insert(parts, tostring(v))
+        end
+        return table.concat(parts, ", ")
+    else
+        -- Handle strings, numbers, booleans, etc.
+        return tostring(value)
+    end
+end
+
+--- Build success message for actions with response_data
+function HomeAssistant:buildResponseDataMessage(entity, api_response)
+    -- Build the base message
+    local base_message = string.format(_(
+            "𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢\n" ..
+            "%s\n\n"),
+        entity.label
+    )
+
+    local full_message = ""
+
+    -- Handle different kind of actions which use "?return_response"
+    if entity.action == "todo.get_items" then
+        full_message = base_message .. self:formatTodoItems(api_response)
+    else
+        -- TODO: Add response data support for other entity types
+        -- Fallback message
+        full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section"
+    end
+
+    return full_message, nil
+end
+
+--- Format todo list items
+function HomeAssistant:formatTodoItems(api_response)
+    -- Decode the response body
+    local service_response = json.decode(api_response).service_response
+    local todo_message = ""
+
+    -- Iterate over service_response (key: entity_id -> value: todo_response)
+    -- We are using a for loop instead of 'local items = service_response[entity.target].items'
+    -- Because we might want to show more than one To-do list in the future
+    -- Currently we break the loop after the first target/entity_id
+    for _, todo_response in pairs(service_response) do
+        local items = todo_response.items
+
+        -- Validate that items is a table
+        if type(items) == "table" then
+            -- Handle empty list
+            if #items == 0 then
+                return "Todo list is empty\n"
+            end
+
+            -- PASS 1: Add only the active (non-completed) items first
+            for _, item in ipairs(items) do
+                if item.status == "needs_action" then
+                    todo_message = todo_message ..
+                        string.format("%s %s\n", Glyphs.checkbox_blank, tostring(item.summary))
+                end
+            end
+
+            -- PASS 2: Add only the completed items at the bottom
+            for _, item in ipairs(items) do
+                if item.status == "completed" then
+                    todo_message = todo_message ..
+                        string.format("%s %s\n", Glyphs.checkbox_marked, tostring(item.summary))
+                end
+            end
+
+            -- Stop after the first entity's items are processed
+            break
+        end
+    end
+
+    return todo_message
 end
 
 return HomeAssistant
