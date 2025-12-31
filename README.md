@@ -171,9 +171,9 @@ This feature works with a single target only.
     action = "todo.get_items",
     target = "todo.shopping_list",
     response_data = true, 
-    data = {
-        -- status = "needs_action"
-    },
+    -- data = {
+    --     status = "needs_action"
+    -- },
 },
 ```
 
