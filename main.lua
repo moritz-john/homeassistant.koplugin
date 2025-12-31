@@ -117,22 +117,20 @@ function HomeAssistant:onActivateHAEvent(entity)
         -- START: Build request_body
         local build_request_body = {}
 
-        -- Handle entity.target: can be string, array, or complex object
-        if type(entity.target) == "string" then
-            -- target = "light.foo"
-            build_request_body.entity_id = entity.target
-        elseif type(entity.target) == "table" then
-            -- Table needs to distinguish between array and key-value map
-            local is_array = (#entity.target > 0)
+        -- Check if target is a List (Array)
+        -- #table > 0 as check for a list of items
+        local is_list = (type(entity.target) == "table" and #entity.target > 0)
 
-            if is_array then
-                -- target = { "light.foo", "light.bar" }
-                build_request_body.entity_id = entity.target
-            else
-                -- target = { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" } etc.
-                for k, v in pairs(entity.target) do
-                    build_request_body[k] = v
-                end
+        -- Case 1: String or List -> Assign to 'entity_id'
+        -- e.g. "light.foo" or { "light.a", "light.b" }
+        if type(entity.target) == "string" or is_list then
+            build_request_body.entity_id = entity.target
+
+            -- Case 2: Map (Key-Value) -> Merge into body
+            -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
+        elseif type(entity.target) == "table" then
+            for k, v in pairs(entity.target) do
+                build_request_body[k] = v
             end
         end
 
