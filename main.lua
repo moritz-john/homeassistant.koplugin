@@ -129,7 +129,7 @@ end
 --- Handle ActivateHAEvent
 -- Flow: build URL & body -> performRequest -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local url, request_body, method
+    local url, service_data, method
 
     if entity.action then
         -- POST: Call a service (e.g., light.turn_on, switch.toggle)
@@ -138,42 +138,44 @@ function HomeAssistant:onActivateHAEvent(entity)
         local query_params = entity.response_data and "?return_response=true" or ""
         url = string.format("http://%s:%d/api/services/%s/%s%s",
             ha_config.host, ha_config.port, domain, action, query_params)
-        local service_data = self:buildServiceData(entity)
-        request_body = rapidjson.encode(service_data)
+        service_data = self:buildServiceData(entity)
     else
         -- GET: Query entity state
         method = "GET"
         url = string.format("http://%s:%d/api/states/%s",
             ha_config.host, ha_config.port, entity.target)
-        request_body = nil
+        service_data = nil
     end
 
     -- Perform the request
-    local code, api_response = self:performRequest(url, method, request_body)
+    local code, api_response = self:performRequest(url, method, service_data)
 
     -- Build and show message
     self:buildMessage(entity, code, api_response, method)
 end
 
 --- Executes a REST request to Home Assistant
-function HomeAssistant:performRequest(url, method, request_body)
+function HomeAssistant:performRequest(url, method, service_data)
     local http = require("socket.http")
     local ltn12 = require("ltn12")
     http.TIMEOUT = 6
 
-    -- Only POST requests include a request body
+    local request_body = rapidjson.encode(service_data)
+
+    -- Only POST requests include service_data
     local headers = {
         ["Authorization"] = "Bearer " .. ha_config.token,
-        ["Content-Type"] = request_body and "application/json" or nil,
-        ["Content-Length"] = request_body and tostring(#request_body) or nil
+        ["Content-Type"] = service_data and "application/json" or nil,
+        ["Content-Length"] = service_data and tostring(#request_body) or nil
     }
+
     local response_body = {}
 
     local res, code = http.request {
         url = url,
         method = method,
         headers = headers,
-        source = request_body and ltn12.source.string(request_body) or nil,
+        source = service_data and ltn12.source.string(request_body) or nil,
         sink = ltn12.sink.table(response_body)
     }
 
