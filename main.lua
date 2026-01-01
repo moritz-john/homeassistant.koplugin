@@ -14,7 +14,7 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
 local DataStorage = require("datastorage")
 local lfs = require("libs/libkoreader-lfs")
-local json = require("json")
+local rapidjson = require("rapidjson")
 
 --- InfoMessage Icon Check
 -- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
@@ -141,7 +141,7 @@ function HomeAssistant:onActivateHAEvent(entity)
             end
         end
 
-        request_body = json.encode(build_request_body)
+        request_body = rapidjson.encode(build_request_body)
         -- END: Build request_body
     else
         -- GET: Query entity state
@@ -250,7 +250,7 @@ function HomeAssistant:buildStateMessage(entity, api_response)
     end
 
     -- Parse response
-    local state = json.decode(api_response)
+    local state = rapidjson.decode(api_response)
 
     -- Ensure attribute(s) in confug.lua are a table (convert single string if needed)
     local attributes = entity.attributes
@@ -280,8 +280,8 @@ end
 function HomeAssistant:formatAttributeValue(value)
     local value_type = type(value)
 
-    if value == nil or value_type == "function" then
-        -- Handle non-existent, malformed or JSON decode errors (e.g. state.attributes.color_mode when a light is turned off)
+    if value == rapidjson.null then
+        -- Handle non-existent, malformed or JSON decode errors
         return "null"
     elseif value_type == "table" then
         -- Handle simple arrays/tables (e.g., [255, 204, 0])
@@ -322,7 +322,7 @@ end
 --- Format todo list items
 function HomeAssistant:formatTodoItems(api_response)
     -- Decode the response body
-    local service_response = json.decode(api_response).service_response
+    local service_response = rapidjson.decode(api_response).service_response
     local todo_message = ""
 
     -- Iterate over service_response (key: entity_id -> value: todo_response)
