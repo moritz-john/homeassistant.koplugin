@@ -178,7 +178,14 @@ function HomeAssistant:performRequest(url, method, service_data)
         sink = ltn12.sink.table(response_body)
     }
 
-    local response_data = rapidjson.decode(table.concat(response_body))
+    -- Decode json response, when actually needed
+    local raw_response = table.concat(response_body)
+    local response_data = nil
+
+    if raw_response ~= "" then
+        local success, result = pcall(rapidjson.decode, raw_response)
+        response_data = success and result or nil
+    end
 
     return code, response_data
 end
