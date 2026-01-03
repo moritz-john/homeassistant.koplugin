@@ -91,7 +91,7 @@ function HomeAssistant:getDomainandAction(entity)
         return domain, action
     else
         domain = entity.target:match("^([^.]+)")
-        return domain
+        return domain, nil
     end
 end
 
