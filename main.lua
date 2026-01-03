@@ -266,7 +266,7 @@ function HomeAssistant:buildStateMessage(entity, response_data)
     -- Named "state", so that later processing matches Home Assistant state object naming
     local state = response_data
 
-    -- Ensure attribute(s) in confug.lua are a table (convert single string if needed)
+    -- Ensure attribute(s) in config.lua are a table (convert single string if needed)
     local attributes = entity.attributes
     if type(attributes) == "string" then
         attributes = { attributes }
@@ -327,7 +327,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
-        full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section"
+        full_message = base_message .. "Configuration error.\nCheck the documentation 'Response Data' section.\n"
     end
 
     return full_message, nil
