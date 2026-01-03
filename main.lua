@@ -231,11 +231,10 @@ function HomeAssistant:buildErrorMessage(entity, response_data)
     return string.format(_(
             "𝙀𝙧𝙧𝙤𝙧\n" ..
             "%s\n\n" ..
-            "domain: %s\n" ..
-            "action: %s\n" ..
             "⏵ response:\n" ..
             "%s"),
-        entity.label, self:getDomainandAction(entity), entity.action or "n/a", response_data
+        entity.label,
+        response_data
     ), nil
 end
 
@@ -244,9 +243,9 @@ function HomeAssistant:buildActionMessage(entity)
     return string.format(_(
             "𝘗𝘦𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯\n" ..
             "%s\n\n" ..
-            "domain: %s\n" ..
             "action: %s"),
-        entity.label, self:getDomainandAction(entity), entity.action
+        entity.label,
+        entity.action
     ), 5
 end
 
