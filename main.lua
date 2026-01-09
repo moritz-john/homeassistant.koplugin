@@ -34,6 +34,10 @@ local Glyphs = {
     ha = "\u{EECE}",
     checkbox_blank = "\u{E830}",
     checkbox_marked = "\u{E834}",
+    weather = "\u{EC94}",
+    thermometer = "\u{E20A}",
+    humidity = "\u{EC8D}",
+    wind_speed = "\u{EC9C}"
 }
 
 local HomeAssistant = WidgetContainer:extend {
@@ -348,6 +352,8 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
         response_content = self:formatTodoItems(response_data)
+    elseif entity.action == "weather.get_forecasts" then
+        response_content = self:formatForecasts(response_data)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
@@ -400,6 +406,56 @@ function HomeAssistant:formatTodoItems(response_data)
     end
 
     return todo_content
+end
+
+--- Format forecast list
+function HomeAssistant:formatForecasts(response_data)
+    local service_response = response_data.service_response
+    local forecast_content = ""
+
+    for _, forecast_response in pairs(service_response) do
+        local forecast = forecast_response.forecast
+
+        -- Validate that forecast is a table
+        if type(forecast) == "table" then
+            -- Handle empty list
+            if #forecast == 0 then
+                return "Your To-do list is empty." -- needs to be adjusted
+            end
+
+            local weather_parts = {}
+
+            for i, measurement in ipairs(forecast) do
+                if i > 3 then break end -- only show the first three hours / days etc.
+                if measurement.datetime then
+                    table.insert(weather_parts, string.format("%s:", measurement.datetime:match("^%d%d%d%d%-%d%d%-%d%d")))
+                end
+                if measurement.condition then
+                    table.insert(weather_parts, string.format("%s Condition: %s", Glyphs.weather, measurement.condition))
+                end
+                if measurement.temperature then
+                    table.insert(weather_parts,
+                        string.format("%s Temperature: %d", Glyphs.thermometer, measurement.temperature))
+                end
+                if measurement.precipitation then
+                    table.insert(weather_parts,
+                        string.format("%s Precipitation: %d", Glyphs.precipitation, measurement.precipitation))                         -- add icon
+                end
+                if measurement.wind_speed then
+                    table.insert(weather_parts,
+                        string.format("%s Wind Speed: %d", Glyphs.wind_speed, measurement.wind_speed))
+                end
+                table.insert(weather_parts, string.format("___"))
+            end
+
+            forecast_content = table.concat(weather_parts, "\n")
+
+            -- Stop after the first entity's items are processed
+            break
+        end
+    end
+
+    return forecast_content
 end
 
 return HomeAssistant
