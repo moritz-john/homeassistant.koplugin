@@ -430,6 +430,9 @@ function HomeAssistant:formatForecasts(entity, response_data)
             local weather_parts = {}
             local limit = 3 -- Configurable limit
 
+            -- for i = start, end, step do
+            -- end = math.min(#forecast, limit); Returns the smaller of the two values
+            -- step = 1; increment is implicit 
             for i = 1, math.min(#forecast, limit) do
                 local measurement = forecast[i]
 
