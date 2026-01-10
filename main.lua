@@ -353,7 +353,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
     if entity.action == "todo.get_items" then
         response_content = self:formatTodoItems(response_data)
     elseif entity.action == "weather.get_forecasts" then
-        response_content = self:formatForecasts(response_data)
+        response_content = self:formatForecasts(entity, response_data)
     else
         -- TODO: Add response data support for other entity types
         -- Fallback message
@@ -409,7 +409,7 @@ function HomeAssistant:formatTodoItems(response_data)
 end
 
 --- Format forecast list
-function HomeAssistant:formatForecasts(response_data)
+function HomeAssistant:formatForecasts(entity, response_data)
     local service_response = response_data.service_response
 
     local display_fields = {
@@ -434,7 +434,20 @@ function HomeAssistant:formatForecasts(response_data)
                 local measurement = forecast[i]
 
                 if measurement.datetime then
-                    table.insert(weather_parts, measurement.datetime)
+                    local date_line
+
+                    local year, month, day, hour, min = measurement.datetime:match(
+                        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)")
+
+                    local t = os.time({ year = year, month = month, day = day, hour = hour, min = min })
+
+                    if entity.data.type == "hourly" then
+                        date_line = os.date("%a %Y-%m-%d %H:%M", t)
+                    else
+                        date_line = os.date("%a %Y-%m-%d", t)
+                    end
+
+                    table.insert(weather_parts, date_line)
                 end
 
                 for _, field in ipairs(display_fields) do
