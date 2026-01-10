@@ -411,65 +411,65 @@ end
 --- Format forecast list
 function HomeAssistant:formatForecasts(entity, response_data)
     local service_response = response_data.service_response
-
     local display_fields = {
         { key = "condition",     icon = Glyphs.weather,     label = "Cond" },
-        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp" },
-        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip" },
-        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind" },
+        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp",   unit_name = "temperature_unit",   unit_value = " °C" },
+        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip", unit_name = "precipitation_unit", unit_value = " mm" },
+        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind",   unit_name = "wind_speed_unit",    unit_value = " km/h" },
     }
 
     for _, forecast_response in pairs(service_response) do
-        local forecast = forecast_response.forecast
+        local forecast_list = forecast_response.forecast
 
-        if type(forecast) == "table" then
-            if #forecast == 0 then
+        if type(forecast_list) == "table" then
+            if #forecast_list == 0 then
                 return "Weather forecast is unavailable."
             end
 
-            local weather_parts = {}
-            local limit = 3 -- Configurable limit
-
+            local output_lines = {}
+            local max_entries = 3 -- Configurable limit
             -- for i = start, end, step do
-            -- end = math.min(#forecast, limit); Returns the smaller of the two values
-            -- step = 1; increment is implicit 
-            for i = 1, math.min(#forecast, limit) do
-                local measurement = forecast[i]
+            -- end = math.min(#forecast_list, max_entries); Returns the smaller of the two values
+            -- step = 1; increment is implicit
+            for entry_index = 1, math.min(#forecast_list, max_entries) do
+                local forecast_entry = forecast_list[entry_index]
 
-                if measurement.datetime then
+                if forecast_entry.datetime then
                     local date_line
-
-                    local year, month, day, hour, min = measurement.datetime:match(
+                    local year, month, day, hour, min = forecast_entry.datetime:match(
                         "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)")
-
-                    local t = os.time({ year = year, month = month, day = day, hour = hour, min = min })
+                    local timestamp = os.time({ year = year, month = month, day = day, hour = hour, min = min })
 
                     if entity.data.type == "hourly" then
-                        date_line = os.date("%a %Y-%m-%d %H:%M", t)
+                        date_line = os.date("%a %Y-%m-%d %H:%M", timestamp)
                     else
-                        date_line = os.date("%a %Y-%m-%d", t)
+                        date_line = os.date("%a %Y-%m-%d", timestamp)
                     end
-
-                    table.insert(weather_parts, date_line)
+                    table.insert(output_lines, date_line)
                 end
 
                 for _, field in ipairs(display_fields) do
-                    local value = measurement[field.key]
-                    if value then
-                        table.insert(weather_parts, string.format("%s %s: %s", field.icon, field.label, value))
+                    local field_value = forecast_entry[field.key]
+
+                    if field_value then
+                        local formatted_value = tostring(field_value)
+                        -- Only append unit if this field has unit support
+                        if field.unit_value and field.unit_value ~= "" then
+                            formatted_value = formatted_value .. field.unit_value
+                        end
+                        table.insert(output_lines, string.format("%s %s: %s",
+                            field.icon, field.label, formatted_value))
                     end
                 end
 
-                if i < limit and i < #forecast then
-                    table.insert(weather_parts, "────────────────")
+                if entry_index < max_entries and entry_index < #forecast_list then
+                    table.insert(output_lines, "────────────────")
                 end
             end
 
-            return table.concat(weather_parts, "\n")
+            return table.concat(output_lines, "\n")
         end
     end
-
-    return "No forecast data found."
 end
 
 return HomeAssistant
