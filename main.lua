@@ -418,7 +418,11 @@ function HomeAssistant:formatForecasts(entity, response_data)
         { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind",   unit_name = "wind_speed_unit",    unit_value = " km/h" },
     }
 
+    -- OUTERMOST LOOP: Iterate through service response (one entity's forecast data)
+    -- We use a for loop instead of direct access to support multiple entities in the future
+    -- Currently we return after processing the first entity's forecast
     for _, forecast_response in pairs(service_response) do
+        -- Extract forecast list: [entry1, entry2, entry3, ...] where each entry = one day/hour
         local forecast_list = forecast_response.forecast
 
         if type(forecast_list) == "table" then
@@ -428,12 +432,16 @@ function HomeAssistant:formatForecasts(entity, response_data)
 
             local output_lines = {}
             local max_entries = 3 -- Configurable limit
+
+            -- MIDDLE LOOP: Iterate through forecast entries (each entry contains weather data)
             -- for i = start, end, step do
             -- end = math.min(#forecast_list, max_entries); Returns the smaller of the two values
             -- step = 1; increment is implicit
             for entry_index = 1, math.min(#forecast_list, max_entries) do
+                -- Extract one forecast entry: { datetime: "...", condition: "sunny", temperature: 22, ... }
                 local forecast_entry = forecast_list[entry_index]
 
+                -- Format and display the date/time
                 if forecast_entry.datetime then
                     local date_line
                     local year, month, day, hour, min = forecast_entry.datetime:match(
@@ -448,25 +456,33 @@ function HomeAssistant:formatForecasts(entity, response_data)
                     table.insert(output_lines, date_line)
                 end
 
+                -- INNERMOST LOOP: Iterate through display fields (each field = one weather attribute)
+                -- For each field.key, extract corresponding data from forecast_entry and format it
                 for _, field in ipairs(display_fields) do
+                    -- Extract the data value using field.key (e.g., forecast_entry["temperature"] = 22)
+                    -- field.key -> what to extract, field_value -> actual data
                     local field_value = forecast_entry[field.key]
 
                     if field_value then
                         local formatted_value = tostring(field_value)
-                        -- Only append unit if this field has unit support
+
+                        -- Append unit if this field has unit support (e.g., "22" becomes "22 °C")
                         if field.unit_value and field.unit_value ~= "" then
                             formatted_value = formatted_value .. field.unit_value
                         end
+
                         table.insert(output_lines, string.format("%s %s: %s",
                             field.icon, field.label, formatted_value))
                     end
                 end
 
+                -- Add separator between forecast entries (but not after the last one)
                 if entry_index < max_entries and entry_index < #forecast_list then
                     table.insert(output_lines, "────────────────")
                 end
             end
 
+            -- Join all formatted lines with newlines and return
             return table.concat(output_lines, "\n")
         end
     end
