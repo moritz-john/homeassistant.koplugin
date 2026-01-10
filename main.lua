@@ -411,51 +411,49 @@ end
 --- Format forecast list
 function HomeAssistant:formatForecasts(response_data)
     local service_response = response_data.service_response
-    local forecast_content = ""
+
+    local display_fields = {
+        { key = "condition",     icon = Glyphs.weather,     label = "Cond" },
+        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp" },
+        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip" },
+        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind" },
+    }
 
     for _, forecast_response in pairs(service_response) do
         local forecast = forecast_response.forecast
 
-        -- Validate that forecast is a table
         if type(forecast) == "table" then
-            -- Handle empty list
             if #forecast == 0 then
-                return "Your To-do list is empty." -- needs to be adjusted
+                return "Weather forecast is unavailable."
             end
 
             local weather_parts = {}
+            local limit = 3 -- Configurable limit
 
-            for i, measurement in ipairs(forecast) do
-                if i > 3 then break end -- only show the first three hours / days etc.
+            for i = 1, math.min(#forecast, limit) do
+                local measurement = forecast[i]
+
                 if measurement.datetime then
-                    table.insert(weather_parts, string.format("%s:", measurement.datetime:match("^%d%d%d%d%-%d%d%-%d%d")))
+                    table.insert(weather_parts, measurement.datetime)
                 end
-                if measurement.condition then
-                    table.insert(weather_parts, string.format("%s Condition: %s", Glyphs.weather, measurement.condition))
+
+                for _, field in ipairs(display_fields) do
+                    local value = measurement[field.key]
+                    if value then
+                        table.insert(weather_parts, string.format("%s %s: %s", field.icon, field.label, value))
+                    end
                 end
-                if measurement.temperature then
-                    table.insert(weather_parts,
-                        string.format("%s Temperature: %d", Glyphs.thermometer, measurement.temperature))
+
+                if i < limit and i < #forecast then
+                    table.insert(weather_parts, "────────────────")
                 end
-                if measurement.precipitation then
-                    table.insert(weather_parts,
-                        string.format("%s Precipitation: %d", Glyphs.precipitation, measurement.precipitation))                         -- add icon
-                end
-                if measurement.wind_speed then
-                    table.insert(weather_parts,
-                        string.format("%s Wind Speed: %d", Glyphs.wind_speed, measurement.wind_speed))
-                end
-                table.insert(weather_parts, string.format("___"))
             end
 
-            forecast_content = table.concat(weather_parts, "\n")
-
-            -- Stop after the first entity's items are processed
-            break
+            return table.concat(weather_parts, "\n")
         end
     end
 
-    return forecast_content
+    return "No forecast data found."
 end
 
 return HomeAssistant
