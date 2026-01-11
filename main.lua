@@ -411,6 +411,8 @@ end
 --- Format forecast list
 function HomeAssistant:formatForecasts(entity, response_data)
     local service_response = response_data.service_response
+    -- TODO: Use unit_name to get the actual unit from Home Assistant via api/states
+    -- When this is implemented, set unit_value = "" by default
     local display_fields = {
         { key = "condition",     icon = Glyphs.weather,     label = "Cond" },
         { key = "temperature",   icon = Glyphs.thermometer, label = "Temp",   unit_name = "temperature_unit",   unit_value = " °C" },
@@ -465,6 +467,16 @@ function HomeAssistant:formatForecasts(entity, response_data)
 
                     if field_value then
                         local formatted_value = tostring(field_value)
+                        -- Text can be appeneded to formatted_value in the following if statements:
+
+                        -- Handle append fields (e.g., temperature & templow: "22 / 15")
+                        if field.append_key then
+                            local append_value = forecast_entry[field.append_key]
+                            if append_value then
+                                local formatted_apend_value = tostring(append_value)
+                                formatted_value = formatted_value .. " / " .. formatted_apend_value
+                            end
+                        end
 
                         -- Append unit if this field has unit support (e.g., "22" becomes "22 °C")
                         if field.unit_value and field.unit_value ~= "" then
