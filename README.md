@@ -59,12 +59,13 @@ It consists of **connection settings** and a list of **entries** (Home Assistant
 ### Connection Settings
 
 First, add your Home Assistant connection details.  
-Change `host`, `port`, and `token` according to your personal setup:
+Change `host`, `port`, `https` and `token` according to your personal setup:
 
 ```lua
 return {
     host = "192.168.1.10",
     port = 8123,
+    https = false,
     token =
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 ```
