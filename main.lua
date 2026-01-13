@@ -427,84 +427,79 @@ function HomeAssistant:formatForecasts(entity, response_data)
         end
     end
 
-    -- OUTERMOST LOOP: Iterate through service response (one entity's forecast data)
-    -- We use a for loop instead of direct access to support multiple entities in the future
-    -- Currently we return after processing the first entity's forecast
-    for _, forecast_response in pairs(service_response) do
-        -- Extract forecast list: [entry1, entry2, entry3, ...] where each entry = one day/hour
-        local forecast_list = forecast_response.forecast
+    -- Extract forecast list: [entry1, entry2, entry3, ...] where each entry = one day/hour
+    local forecast_list = service_response[entity.target].forecast
 
-        if type(forecast_list) == "table" then
-            if #forecast_list == 0 then
-                return "Weather forecast is unavailable."
-            end
-
-            local output_lines = {}
-            local max_entries = 3 -- Configurable limit
-
-            -- MIDDLE LOOP: Iterate through forecast entries (each entry contains weather data)
-            -- for i = start, end, step do
-            -- end = math.min(#forecast_list, max_entries); Returns the smaller of the two values
-            -- step = 1; increment is implicit
-            for entry_index = 1, math.min(#forecast_list, max_entries) do
-                -- Extract one forecast entry: { datetime: "...", condition: "sunny", temperature: 22, ... }
-                local forecast_entry = forecast_list[entry_index]
-
-                -- Format and display the date/time
-                if forecast_entry.datetime then
-                    local date_line
-                    local year, month, day, hour, min = forecast_entry.datetime:match(
-                        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)%S*")
-                    local timestamp = os.time({ year = year, month = month, day = day, hour = hour, min = min })
-
-                    -- TODO: Decide on how I want to display Dates and Time:
-                    if entity.data.type == "hourly" then
-                        date_line = Glyphs.calendar_clock .. " Time: " .. os.date("%H:%M", timestamp)
-                    else
-                        date_line = os.date("%a %Y-%m-%d", timestamp)
-                    end
-                    table.insert(output_lines, date_line)
-                end
-
-                -- INNERMOST LOOP: Iterate through display fields (each field = one weather attribute)
-                -- For each field.key, extract corresponding data from forecast_entry and format it
-                for _, field in ipairs(display_fields) do
-                    -- Extract the data value using field.key (e.g., forecast_entry["temperature"] = 22)
-                    -- field.key -> what to extract, field_value -> actual data
-                    local field_value = forecast_entry[field.key]
-
-                    if field_value then
-                        local formatted_value = tostring(field_value)
-                        -- Text can be appeneded to formatted_value in the following if statements:
-
-                        -- Handle append fields (e.g., temperature & templow: "22 / 15")
-                        if field.append_key then
-                            local append_value = forecast_entry[field.append_key]
-                            if append_value then
-                                local formatted_apend_value = tostring(append_value)
-                                formatted_value = formatted_value .. " / " .. formatted_apend_value
-                            end
-                        end
-
-                        -- Append unit if this field has unit support (e.g., "22" becomes "22 °C")
-                        if field.unit_value and field.unit_value ~= "" then
-                            formatted_value = formatted_value .. field.unit_value
-                        end
-
-                        table.insert(output_lines, string.format("%s %s: %s",
-                            field.icon, field.label, formatted_value))
-                    end
-                end
-
-                -- Add separator between forecast entries (but not after the last one)
-                if entry_index < max_entries and entry_index < #forecast_list then
-                    table.insert(output_lines, "────────────────")
-                end
-            end
-
-            -- Join all formatted lines with newlines and return
-            return table.concat(output_lines, "\n")
+    if type(forecast_list) == "table" then
+        if #forecast_list == 0 then
+            return "Weather forecast is unavailable."
         end
+
+        local output_lines = {}
+        local max_entries = 3 -- Configurable limit
+
+        -- OUTER LOOP: Iterate through forecast entries (each entry contains weather data)
+        -- for i = start, end, step do
+        -- end = math.min(#forecast_list, max_entries); Returns the smaller of the two values
+        -- step = 1; increment is implicit
+        for entry_index = 1, math.min(#forecast_list, max_entries) do
+            -- Extract one forecast entry: { datetime: "...", condition: "sunny", temperature: 22, ... }
+            local forecast_entry = forecast_list[entry_index]
+
+            -- Format and display the date/time
+            if forecast_entry.datetime then
+                local date_line
+                local year, month, day, hour, min = forecast_entry.datetime:match(
+                    "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)%S*")
+                local timestamp = os.time({ year = year, month = month, day = day, hour = hour, min = min })
+
+                -- TODO: Decide on how I want to display Dates and Time:
+                if entity.data.type == "hourly" then
+                    date_line = Glyphs.calendar_clock .. " Time: " .. os.date("%H:%M", timestamp)
+                else
+                    date_line = os.date("%a %Y-%m-%d", timestamp)
+                end
+                table.insert(output_lines, date_line)
+            end
+
+            -- INNER LOOP: Iterate through display fields (each field = one weather attribute)
+            -- For each field.key, extract corresponding data from forecast_entry and format it
+            for _, field in ipairs(display_fields) do
+                -- Extract the data value using field.key (e.g., forecast_entry["temperature"] = 22)
+                -- field.key -> what to extract, field_value -> actual data
+                local field_value = forecast_entry[field.key]
+
+                if field_value then
+                    local formatted_value = tostring(field_value)
+                    -- Text can be appeneded to formatted_value in the following if statements:
+
+                    -- Handle append fields (e.g., temperature & templow: "22 / 15")
+                    if field.append_key then
+                        local append_value = forecast_entry[field.append_key]
+                        if append_value then
+                            local formatted_apend_value = tostring(append_value)
+                            formatted_value = formatted_value .. " / " .. formatted_apend_value
+                        end
+                    end
+
+                    -- Append unit if this field has unit support (e.g., "22" becomes "22 °C")
+                    if field.unit_value and field.unit_value ~= "" then
+                        formatted_value = formatted_value .. field.unit_value
+                    end
+
+                    table.insert(output_lines, string.format("%s %s: %s",
+                        field.icon, field.label, formatted_value))
+                end
+            end
+
+            -- Add separator between forecast entries (but not after the last one)
+            if entry_index < max_entries and entry_index < #forecast_list then
+                table.insert(output_lines, "────────────────")
+            end
+        end
+
+        -- Join all formatted lines with newlines and return
+        return table.concat(output_lines, "\n")
     end
 end
 
