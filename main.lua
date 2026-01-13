@@ -55,6 +55,7 @@ local HomeAssistant = WidgetContainer:extend {
 function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
+    self.base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
 end
 
 --- Register dispatcher actions for each Home Assistant entity
@@ -95,19 +96,6 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Extract domain & action from entity.target or entity.action
--- TODO: Think of a different way to get domain, if target is not a string.
-function HomeAssistant:getDomainandAction(entity)
-    local domain, action
-    if entity.action then
-        domain, action = entity.action:match("^([^.]+)%.(.+)$")
-        return domain, action
-    else
-        domain = entity.target:match("^([^.]+)")
-        return domain, nil
-    end
-end
-
 --- Trim leading and trailing whitespace from each line of a multi-line string
 function HomeAssistant:trimWhitespace(str)
     local lines = {}
@@ -117,9 +105,21 @@ function HomeAssistant:trimWhitespace(str)
     return table.concat(lines, "\n")
 end
 
---- Helper to build the JSON body for the request
-function HomeAssistant:buildServiceData(entity)
-    local body = {}
+--- POST /api/services/<domain>/<service> - Call a Home Assistant service
+-- Handle actions with and without action response data
+function HomeAssistant:apiServices(entity)
+    local domain, action = entity.action:match("^([^.]+)%.(.+)$")
+    local response_parameter = entity.response_data == true and "?return_response=true" or ""
+    local url = string.format("%s/api/services/%s/%s%s",
+        self.base_url, domain, action, response_parameter)
+
+    -- If response_data is enabled, only allow string targets
+    if entity.response_data == true and type(entity.target) ~= "string" then
+        return true, "Invalid 'config.lua':\nActions with response data only allow a single target (as string)"
+    end
+
+    -- Build the JSON body for the service call
+    local service_data = {}
 
     -- Check if target is a List (Array)
     -- #table > 0 as check for a list of items
@@ -128,57 +128,60 @@ function HomeAssistant:buildServiceData(entity)
     -- Case 1: String or List -> Assign to 'entity_id'
     -- e.g. "light.foo" or { "light.a", "light.b" }
     if type(entity.target) == "string" or is_list then
-        body.entity_id = entity.target
+        service_data.entity_id = entity.target
 
         -- Case 2: Map (Key-Value) -> Merge into body
         -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
     elseif type(entity.target) == "table" then
         for k, v in pairs(entity.target) do
-            body[k] = v
+            service_data[k] = v
         end
     end
 
     -- Merge additional 'data' attributes if present
     if entity.data then
         for k, v in pairs(entity.data) do
-            body[k] = v
+            service_data[k] = v
         end
     end
 
-    return body
+    local error, response_data = self:performRequest(entity, url, "POST", service_data)
+    return error, response_data
+end
+
+--- POST /api/template - Evaluate a Home Assistant template
+function HomeAssistant:apiTemplate(entity)
+    local url = string.format("%s/api/template", self.base_url)
+    local service_data = { template = self:trimWhitespace(entity.template) }
+
+    local error, response_data = self:performRequest(entity, url, "POST", service_data)
+    return error, response_data
+end
+
+--- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
+function HomeAssistant:apiStates(entity)
+    local url = string.format("%s/api/states/%s", self.base_url, entity.target)
+
+    local error, response_data = self:performRequest(entity, url, "GET", nil)
+    return error, response_data
 end
 
 --- Handle ActivateHAEvent
--- Flow: build URL & body -> performRequest -> display result message to user
+-- Flow: determine endpoint -> call API method -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local url, method, service_data
-    local base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
+    local error, response_data
 
-    if entity.template then
-        url = string.format("%s/api/template", base_url)
-        method = "POST"
-        service_data = { template = self:trimWhitespace(entity.template) }
-
-    elseif entity.action then
-        local domain, action = self:getDomainandAction(entity)
-        local response_parameter = entity.response_data == true and "?return_response=true" or ""
-        url = string.format("%s/api/services/%s/%s%s",
-            base_url, domain, action, response_parameter)
-        method = "POST"
-        service_data = self:buildServiceData(entity)
-
+    if entity.action then
+        error, response_data = self:apiServices(entity)
+    elseif entity.template then
+        error, response_data = self:apiTemplate(entity)
     elseif entity.attributes then
-        url = string.format("%s/api/states/%s", base_url, entity.target)
-        method = "GET"
+        error, response_data = self:apiStates(entity)
     else
         self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
         return
     end
 
-    -- Perform the request
-    local error, response_data = self:performRequest(entity, url, method, service_data)
-
-    -- Build and show message
     self:buildMessage(entity, error, response_data)
 end
 
