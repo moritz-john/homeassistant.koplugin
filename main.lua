@@ -34,9 +34,10 @@ local Glyphs = {
     ha = "\u{EECE}",
     checkbox_blank = "\u{E830}",
     checkbox_marked = "\u{E834}",
+    calendar_clock = "\u{E7EF}",
     weather = "\u{EC94}",
     thermometer = "\u{E20A}",
-    humidity = "\u{EC8D}",
+    umbrella = "\u{E220}",
     wind_speed = "\u{EC9C}"
 }
 
@@ -447,11 +448,12 @@ function HomeAssistant:formatForecasts(entity, response_data)
                 if forecast_entry.datetime then
                     local date_line
                     local year, month, day, hour, min = forecast_entry.datetime:match(
-                        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)")
+                        "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)%S*")
                     local timestamp = os.time({ year = year, month = month, day = day, hour = hour, min = min })
 
+                    -- TODO: Decide on how I want to display Dates and Time:
                     if entity.data.type == "hourly" then
-                        date_line = os.date("%a %Y-%m-%d %H:%M", timestamp)
+                        date_line = Glyphs.calendar_clock .. " Time: " .. os.date("%H:%M", timestamp)
                     else
                         date_line = os.date("%a %Y-%m-%d", timestamp)
                     end
