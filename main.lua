@@ -461,7 +461,7 @@ function HomeAssistant:formatForecasts(entity, response_data)
                 if entity.data.type == "hourly" then
                     date_line = Glyphs.calendar_clock .. " Time: " .. os.date("%H:%M", timestamp)
                 else
-                    date_line = os.date("%a %Y-%m-%d", timestamp)
+                    date_line = Glyphs.calendar_clock .. " Date: " .. os.date("%a %Y-%m-%d", timestamp)
                 end
                 table.insert(output_lines, date_line)
             end
