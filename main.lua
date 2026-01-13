@@ -412,12 +412,11 @@ end
 function HomeAssistant:formatForecasts(entity, response_data)
     local service_response = response_data.service_response
 
-    -- TODO: Decide on label text
     local display_fields = {
-        { key = "condition",     icon = Glyphs.weather,     label = "Cond" },
-        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp",   unit_name = "temperature_unit",   unit_value = "", append_key = "templow" },
-        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip", unit_name = "precipitation_unit", unit_value = "" },
-        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind",   unit_name = "wind_speed_unit",    unit_value = "" },
+        { key = "condition",     icon = Glyphs.weather,     label = "Cond." },
+        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp.",   unit_name = "temperature_unit",   unit_value = "", append_key = "templow" },
+        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip.", unit_name = "precipitation_unit", unit_value = "" },
+        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind.",   unit_name = "wind_speed_unit",    unit_value = "" },
     }
 
     -- Make a /api/states call to receive the actual value for unit_name = "temperature_unit" etc. and store it in unit_value
