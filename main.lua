@@ -119,7 +119,7 @@ function HomeAssistant:onActivateHAEvent(entity)
 end
 
 --- Trim leading and trailing whitespace from each line of a multi-line string
--- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to 
+-- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
 -- Home Assistant without the extra indentation/whitespace from config.lua
 function HomeAssistant:trimWhitespace(str)
     local lines = {}
@@ -364,7 +364,6 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
     elseif entity.action == "weather.get_forecasts" then
         response_content = self:formatForecasts(entity, response_data)
     else
-        -- TODO: Add response data support for other entity types
         -- Fallback message
         response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
     end
@@ -442,12 +441,13 @@ function HomeAssistant:formatForecasts(entity, response_data)
         local output_lines = {}
         local max_entries = 3 -- Configurable limit
 
-        -- OUTER LOOP: Iterate through forecast entries (each entry contains weather data)
+        -- OUTER LOOP: Iterate through forecast_list
         -- for i = start, end, step do
         -- end = math.min(#forecast_list, max_entries); Returns the smaller of the two values
         -- step = 1; increment is implicit
         for entry_index = 1, math.min(#forecast_list, max_entries) do
-            -- Extract one forecast entry: { datetime: "...", condition: "sunny", temperature: 22, ... }
+            -- Get the forecast entry for the current loop iteration.
+            -- This data point contains multiple fields (e.g. datetime: "...", condition: "sunny", temperature: 22 )
             local forecast_entry = forecast_list[entry_index]
 
             -- Format and display the date/time
@@ -457,7 +457,6 @@ function HomeAssistant:formatForecasts(entity, response_data)
                     "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)%S*")
                 local timestamp = os.time({ year = year, month = month, day = day, hour = hour, min = min })
 
-                -- TODO: Decide on how I want to display Dates and Time:
                 if entity.data.type == "hourly" then
                     date_line = Glyphs.calendar_clock .. " Time: " .. os.date("%H:%M", timestamp)
                 else
