@@ -489,7 +489,7 @@ function HomeAssistant:formatForecasts(entity, response_data)
 
                     -- Append unit if this field has unit support (e.g., "22" becomes "22 °C")
                     if field.unit_value and field.unit_value ~= "" then
-                        formatted_value = formatted_value .. field.unit_value
+                        formatted_value = formatted_value .. " " .. field.unit_value
                     end
 
                     table.insert(output_lines, string.format("%s %s: %s",
