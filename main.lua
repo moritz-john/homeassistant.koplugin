@@ -412,14 +412,28 @@ end
 --- Format forecast list
 function HomeAssistant:formatForecasts(entity, response_data)
     local service_response = response_data.service_response
-    -- TODO: Use unit_name to get the actual unit from Home Assistant via api/states
-    -- When this is implemented, set unit_value = "" by default
+
+    -- TODO: Decide on label text
     local display_fields = {
         { key = "condition",     icon = Glyphs.weather,     label = "Cond" },
-        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp",   unit_name = "temperature_unit",   unit_value = " °C" },
-        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip", unit_name = "precipitation_unit", unit_value = " mm" },
-        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind",   unit_name = "wind_speed_unit",    unit_value = " km/h" },
+        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp",   unit_name = "temperature_unit",   unit_value = "", append_key = "templow" },
+        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip", unit_name = "precipitation_unit", unit_value = "" },
+        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind",   unit_name = "wind_speed_unit",    unit_value = "" },
     }
+
+    -- Temporay "hard coded" API call
+    -- onActivateHAEvent needs to be refactored first
+    local url = string.format("http://%s:%d/api/states/%s", ha_config.host, ha_config.port, entity.target)
+    local error, state = self:performRequest(entity.target, url, "GET", nil)
+
+    if not error and state and state.attributes then
+        for _, field in ipairs(display_fields) do
+            if field.unit_name then
+                -- Overwrite the placeholder with actual value from Home Assistant
+                field.unit_value = state.attributes[field.unit_name] or ""
+            end
+        end
+    end
 
     -- OUTERMOST LOOP: Iterate through service response (one entity's forecast data)
     -- We use a for loop instead of direct access to support multiple entities in the future
