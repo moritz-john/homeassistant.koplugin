@@ -355,7 +355,7 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
 
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
-        response_content = self:formatTodoItems(response_data)
+        response_content = self:formatTodoItems(entity, response_data)
     elseif entity.action == "weather.get_forecasts" then
         response_content = self:formatForecasts(entity, response_data)
     else
@@ -368,45 +368,36 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
 end
 
 --- Format todo list items
-function HomeAssistant:formatTodoItems(response_data)
+function HomeAssistant:formatTodoItems(entity, response_data)
     local service_response = response_data.service_response
     local todo_content = ""
 
-    -- Iterate over service_response (key: entity_id -> value: todo_response)
-    -- We are using a for loop instead of 'local items = service_response[entity.target].items'
-    -- Because we might want to show more than one To-do list in the future
-    -- Currently we break the loop after the first target/entity_id
-    for _, todo_response in pairs(service_response) do
-        local items = todo_response.items
+    local items = service_response[entity.target].items
 
-        -- Validate that items is a table
-        if type(items) == "table" then
-            -- Handle empty list
-            if #items == 0 then
-                return "Your To-do list is empty."
-            end
-
-            local todo_parts = {}
-
-            -- PASS 1: Add only the active (non-completed) items first
-            for _, item in ipairs(items) do
-                if item.status == "needs_action" then
-                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_blank, tostring(item.summary)))
-                end
-            end
-
-            -- PASS 2: Add only the completed items at the bottom
-            for _, item in ipairs(items) do
-                if item.status == "completed" then
-                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_marked, tostring(item.summary)))
-                end
-            end
-
-            todo_content = table.concat(todo_parts, "\n")
-
-            -- Stop after the first entity's items are processed
-            break
+    -- Validate that items is a table
+    if type(items) == "table" then
+        -- Handle empty list
+        if #items == 0 then
+            return "Your To-do list is empty."
         end
+
+        local todo_parts = {}
+
+        -- PASS 1: Add only the active (non-completed) items first
+        for _, item in ipairs(items) do
+            if item.status == "needs_action" then
+                table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_blank, tostring(item.summary)))
+            end
+        end
+
+        -- PASS 2: Add only the completed items at the bottom
+        for _, item in ipairs(items) do
+            if item.status == "completed" then
+                table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_marked, tostring(item.summary)))
+            end
+        end
+
+        todo_content = table.concat(todo_parts, "\n")
     end
 
     return todo_content
