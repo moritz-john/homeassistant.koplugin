@@ -1,12 +1,6 @@
 --- homeassistant.koplugin
 -- This plugin allows KOReader to control Home Assistant entities through its REST API.
 
--- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
-local ok, ha_config = pcall(require, "debug_config")
-if not ok then
-    ha_config = require("config")
-end
-
 local Dispatcher = require("dispatcher")
 local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
@@ -18,6 +12,12 @@ local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
 
+-- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
+local ok, ha_config = pcall(require, "debug_config")
+if not ok then
+    ha_config = require("config")
+end
+
 --- InfoMessage Icon Check
 -- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
 local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
@@ -28,7 +28,7 @@ if file_mode == "file" then
     icon_value = "homeassistant"
 end
 
---- Font glyph definitions
+--- Define font glyphs
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
 local Glyphs = {
     ha = "\u{EECE}",
@@ -41,21 +41,24 @@ local Glyphs = {
     wind_speed = "\u{EC9C}"
 }
 
+--- Define Home Assisant base_url
+local protocol = ha_config.https == true and "https" or "http"
+local base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
+
 local HomeAssistant = WidgetContainer:extend {
     name                     = "homeassistant",
     is_doc_only              = false,
-
+    -- timeout values in seconds
     HTTP_TIMEOUT             = 6,
-    ERROR_MESSAGE_TIMEOUT    = nil,
-    RESPONSE_MESSAGE_TIMEOUT = 8,
     SIMPLE_MESSAGE_TIMEOUT   = 5,
+    RESPONSE_MESSAGE_TIMEOUT = nil,
+    ERROR_MESSAGE_TIMEOUT    = nil,
 }
 
 --- Initialize the plugin
 function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
-    self.base_url = string.format("http://%s:%d", ha_config.host, ha_config.port)
 end
 
 --- Register dispatcher actions for each Home Assistant entity
@@ -96,7 +99,28 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
+--- Handle ActivateHAEvent
+-- Flow: determine endpoint -> call API method -> display result message to user
+function HomeAssistant:onActivateHAEvent(entity)
+    local error, response_data
+
+    if entity.action then
+        error, response_data = self:apiServices(entity)
+    elseif entity.template then
+        error, response_data = self:apiTemplate(entity)
+    elseif entity.attributes then
+        error, response_data = self:apiStates(entity)
+    else
+        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        return
+    end
+
+    self:buildMessage(entity, error, response_data)
+end
+
 --- Trim leading and trailing whitespace from each line of a multi-line string
+-- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to 
+-- Home Assistant without the extra indentation/whitespace from config.lua
 function HomeAssistant:trimWhitespace(str)
     local lines = {}
     for line in str:gmatch("[^\n]+") do
@@ -111,7 +135,7 @@ function HomeAssistant:apiServices(entity)
     local domain, action = entity.action:match("^([^.]+)%.(.+)$")
     local response_parameter = entity.response_data == true and "?return_response=true" or ""
     local url = string.format("%s/api/services/%s/%s%s",
-        self.base_url, domain, action, response_parameter)
+        base_url, domain, action, response_parameter)
 
     -- If response_data is enabled, only allow string targets
     if entity.response_data == true and type(entity.target) ~= "string" then
@@ -151,7 +175,7 @@ end
 
 --- POST /api/template - Evaluate a Home Assistant template
 function HomeAssistant:apiTemplate(entity)
-    local url = string.format("%s/api/template", self.base_url)
+    local url = string.format("%s/api/template", base_url)
     local service_data = { template = self:trimWhitespace(entity.template) }
 
     local error, response_data = self:performRequest(entity, url, "POST", service_data)
@@ -160,29 +184,10 @@ end
 
 --- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
 function HomeAssistant:apiStates(entity)
-    local url = string.format("%s/api/states/%s", self.base_url, entity.target)
+    local url = string.format("%s/api/states/%s", base_url, entity.target)
 
     local error, response_data = self:performRequest(entity, url, "GET", nil)
     return error, response_data
-end
-
---- Handle ActivateHAEvent
--- Flow: determine endpoint -> call API method -> display result message to user
-function HomeAssistant:onActivateHAEvent(entity)
-    local error, response_data
-
-    if entity.action then
-        error, response_data = self:apiServices(entity)
-    elseif entity.template then
-        error, response_data = self:apiTemplate(entity)
-    elseif entity.attributes then
-        error, response_data = self:apiStates(entity)
-    else
-        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
-        return
-    end
-
-    self:buildMessage(entity, error, response_data)
 end
 
 --- Executes a REST request to Home Assistant
