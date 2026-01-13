@@ -424,10 +424,8 @@ function HomeAssistant:formatForecasts(entity, response_data)
         { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind",   unit_name = "wind_speed_unit",    unit_value = "" },
     }
 
-    -- Temporay "hard coded" API call
-    -- onActivateHAEvent needs to be refactored first
-    local url = string.format("http://%s:%d/api/states/%s", ha_config.host, ha_config.port, entity.target)
-    local error, state = self:performRequest(entity.target, url, "GET", nil)
+    -- Make a /api/states call to receive the actual value for unit_name = "temperature_unit" etc. and store it in unit_value
+    local error, state = self:apiStates(entity)
 
     if not error and state and state.attributes then
         for _, field in ipairs(display_fields) do
