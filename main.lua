@@ -36,7 +36,7 @@ local Glyphs = {
     checkbox_marked = "\u{E834}",
     calendar_clock = "\u{E7EF}",
     weather = "\u{EC94}",
-    thermometer = "\u{E20A}",
+    thermometer = "\u{EC0E}",
     umbrella = "\u{E220}",
     wind_speed = "\u{EC9C}"
 }
