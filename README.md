@@ -193,7 +193,7 @@ This feature works with a single target only (target = " ... ").
 {
     label = "\u{E376} Weather Forecast",
     action = "weather.get_forecasts",
-    target = "weather.stuttgart_berlin",
+    target = "weather.berlin",
     response_data = true,
     data = {
         type = "daily" -- or "hourly"
