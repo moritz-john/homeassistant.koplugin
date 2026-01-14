@@ -22,11 +22,7 @@ end
 -- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
 local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
 local file_mode = lfs.attributes(icon_path, "mode")
-local icon_value = nil
-
-if file_mode == "file" then
-    icon_value = "homeassistant"
-end
+local icon = file_mode == "file" and "homeassistant" or "notice-info"
 
 --- Define font glyphs
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
@@ -275,7 +271,7 @@ function HomeAssistant:showMessage(title, entity, content, timeout)
     UIManager:show(InfoMessage:new {
         text = messageText,
         timeout = timeout,
-        icon = icon_value,
+        icon = icon,
     })
 end
 
