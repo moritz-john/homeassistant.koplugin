@@ -15,7 +15,7 @@
 - Action support with custom data attributes e.g.:  
   - **light.turn_on** with `brightness` and `color` 
   - **media_player.play_media** with `media_content_id` & `type`
-- Actions with response data (currently **todo.get_items**)
+- Actions with response data (**todo.get_items** or **weather.get_forecasts**)
 - Evaluate Home Assistant templates
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
