@@ -59,12 +59,13 @@ It consists of **connection settings** and a list of **entries** (Home Assistant
 ### Connection Settings
 
 First, add your Home Assistant connection details.  
-Change `host`, `port`, and `token` according to your personal setup:
+Change `host`, `port`, `https` and `token` according to your personal setup:
 
 ```lua
 return {
     host = "192.168.1.10",
     port = 8123,
+    https = false,
     token =
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 ```
@@ -441,7 +442,6 @@ Result:
 ## Requirements
 - KOReader 2024.x or newer (tested with: 2025.10 "Ghost" on a Kindle Basic 2024)  
 - Home Assistant instance with a Long-Lived Access Token
-- HTTP access to Home Assistant (HTTPS currently not supported - use on local network)
 
 ## Screenshots
 
