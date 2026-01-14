@@ -15,7 +15,7 @@
 - Action support with custom data attributes e.g.:  
   - **light.turn_on** with `brightness` and `color` 
   - **media_player.play_media** with `media_content_id` & `type`
-- Actions with response data (currently **todo.get_items**)
+- Actions with response data (**todo.get_items** or **weather.get_forecasts**)
 - Evaluate Home Assistant templates
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
@@ -102,6 +102,9 @@ The entry in `config.lua` would look like this:
 },
 ```
 
+Of course you are not just limited to `light.turn_on` - any other action works:  
+`scene.turn_on`, `automation.trigger`, `input_button.press`, `fan.toggle`, `switch.turn_off` etc...
+
 ### Adding Data to Actions | 'data = {...}'
 
 You can add additional data to your action. In this example we add the data attributes `brightness` and `rgb_color` to [action **light.turn_on**](https://www.home-assistant.io/integrations/light/#action-lightturn_on) through `data`:
@@ -163,10 +166,12 @@ You can either use one single line or indentation:
 ### Actions with Response Data | 'response_data = true'
 
 Some Home Assistant actions can return response data.  
-The plugin currently supports this for [`todo.get_items`](https://www.home-assistant.io/integrations/todo/#action-todoget_items).
+The plugin currently supports this for [`todo.get_items`](https://www.home-assistant.io/integrations/todo/#action-todoget_items) and [`weather.get_forecasts`](https://www.home-assistant.io/integrations/weather/#action-weatherget_forecasts).
 
 To enable this, add the `response_data` field to your configuration.  
-This feature works with a single target only.
+This feature works with a single target only (target = " ... ").
+
+#### todo.get_items Example:
 
 ```lua
 {
@@ -183,10 +188,26 @@ This feature works with a single target only.
 
 <img src="assets/response_data.png" style="width:50%; height:auto;" />
 
+#### weather.get_forecasts Example:
+```lua
+{
+    label = "\u{E376} Weather Forecast",
+    action = "weather.get_forecasts",
+    target = "weather.stuttgart_berlin",
+    response_data = true,
+    data = {
+        type = "daily" -- or "hourly"
+    },
+},
+```
+
+<img src="assets/weather_response_data.png" style="width:50%; height:auto;" />
+
 <br>
 
 > [!NOTE]
-> This is an opinionated feature. It assumes most users are on Kindle or Kobo devices with limited screen space. For this reason, task descriptions are intentionally not shown.
+> This is an opinionated feature. It assumes most users are on Kindle or Kobo devices with limited screen space. 
+> For this reason, e.g.: task descriptions are intentionally not shown and weather forecast is limited to 3 items.
 
 ### Get Entity States | 'state query'
 

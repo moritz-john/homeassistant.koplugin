@@ -1,12 +1,6 @@
 --- homeassistant.koplugin
 -- This plugin allows KOReader to control Home Assistant entities through its REST API.
 
--- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
-local ok, ha_config = pcall(require, "debug_config")
-if not ok then
-    ha_config = require("config")
-end
-
 local Dispatcher = require("dispatcher")
 local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
@@ -18,6 +12,12 @@ local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
 
+-- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
+local ok, ha_config = pcall(require, "debug_config")
+if not ok then
+    ha_config = require("config")
+end
+
 --- InfoMessage Icon Check
 -- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
 local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
@@ -28,22 +28,31 @@ if file_mode == "file" then
     icon_value = "homeassistant"
 end
 
---- Font glyph definitions
+--- Define font glyphs
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
 local Glyphs = {
     ha = "\u{EECE}",
     checkbox_blank = "\u{E830}",
     checkbox_marked = "\u{E834}",
+    calendar_clock = "\u{E7EF}",
+    weather = "\u{EC94}",
+    thermometer = "\u{EC0E}",
+    umbrella = "\u{E220}",
+    wind_speed = "\u{EC9C}"
 }
+
+--- Define Home Assisant base_url
+local protocol = ha_config.https == true and "https" or "http"
+local base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
 
 local HomeAssistant = WidgetContainer:extend {
     name                     = "homeassistant",
     is_doc_only              = false,
-
+    -- timeout values in seconds
     HTTP_TIMEOUT             = 6,
-    ERROR_MESSAGE_TIMEOUT    = nil,
-    RESPONSE_MESSAGE_TIMEOUT = 8,
     SIMPLE_MESSAGE_TIMEOUT   = 5,
+    RESPONSE_MESSAGE_TIMEOUT = nil,
+    ERROR_MESSAGE_TIMEOUT    = nil,
 }
 
 --- Initialize the plugin
@@ -90,20 +99,28 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Extract domain & action from entity.target or entity.action
--- TODO: Think of a different way to get domain, if target is not a string.
-function HomeAssistant:getDomainandAction(entity)
-    local domain, action
+--- Handle ActivateHAEvent
+-- Flow: determine endpoint -> call API method -> display result message to user
+function HomeAssistant:onActivateHAEvent(entity)
+    local error, response_data
+
     if entity.action then
-        domain, action = entity.action:match("^([^.]+)%.(.+)$")
-        return domain, action
+        error, response_data = self:apiServices(entity)
+    elseif entity.template then
+        error, response_data = self:apiTemplate(entity)
+    elseif entity.attributes then
+        error, response_data = self:apiStates(entity)
     else
-        domain = entity.target:match("^([^.]+)")
-        return domain, nil
+        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        return
     end
+
+    self:buildMessage(entity, error, response_data)
 end
 
 --- Trim leading and trailing whitespace from each line of a multi-line string
+-- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
+-- Home Assistant without the extra indentation/whitespace from config.lua
 function HomeAssistant:trimWhitespace(str)
     local lines = {}
     for line in str:gmatch("[^\n]+") do
@@ -112,9 +129,21 @@ function HomeAssistant:trimWhitespace(str)
     return table.concat(lines, "\n")
 end
 
---- Helper to build the JSON body for the request
-function HomeAssistant:buildServiceData(entity)
-    local body = {}
+--- POST /api/services/<domain>/<service> - Call a Home Assistant service
+-- Handle actions with and without action response data
+function HomeAssistant:apiServices(entity)
+    local domain, action = entity.action:match("^([^.]+)%.(.+)$")
+    local response_parameter = entity.response_data == true and "?return_response=true" or ""
+    local url = string.format("%s/api/services/%s/%s%s",
+        base_url, domain, action, response_parameter)
+
+    -- If response_data is enabled, only allow string targets
+    if entity.response_data == true and type(entity.target) ~= "string" then
+        return true, "Invalid 'config.lua':\nActions with response data only allow a single target (as string)"
+    end
+
+    -- Build the JSON body for the service call
+    local service_data = {}
 
     -- Check if target is a List (Array)
     -- #table > 0 as check for a list of items
@@ -123,59 +152,42 @@ function HomeAssistant:buildServiceData(entity)
     -- Case 1: String or List -> Assign to 'entity_id'
     -- e.g. "light.foo" or { "light.a", "light.b" }
     if type(entity.target) == "string" or is_list then
-        body.entity_id = entity.target
+        service_data.entity_id = entity.target
 
         -- Case 2: Map (Key-Value) -> Merge into body
         -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
     elseif type(entity.target) == "table" then
         for k, v in pairs(entity.target) do
-            body[k] = v
+            service_data[k] = v
         end
     end
 
     -- Merge additional 'data' attributes if present
     if entity.data then
         for k, v in pairs(entity.data) do
-            body[k] = v
+            service_data[k] = v
         end
     end
 
-    return body
+    local error, response_data = self:performRequest(entity, url, "POST", service_data)
+    return error, response_data
 end
 
---- Handle ActivateHAEvent
--- Flow: build URL & body -> performRequest -> display result message to user
-function HomeAssistant:onActivateHAEvent(entity)
-    local url, method, service_data
-    local protocol = ha_config.https == true and "https" or "http"
-    local base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
+--- POST /api/template - Evaluate a Home Assistant template
+function HomeAssistant:apiTemplate(entity)
+    local url = string.format("%s/api/template", base_url)
+    local service_data = { template = self:trimWhitespace(entity.template) }
 
-    if entity.template then
-        url = string.format("%s/api/template", base_url)
-        method = "POST"
-        service_data = { template = self:trimWhitespace(entity.template) }
+    local error, response_data = self:performRequest(entity, url, "POST", service_data)
+    return error, response_data
+end
 
-    elseif entity.action then
-        local domain, action = self:getDomainandAction(entity)
-        local response_parameter = entity.response_data == true and "?return_response=true" or ""
-        url = string.format("%s/api/services/%s/%s%s",
-            base_url, domain, action, response_parameter)
-        method = "POST"
-        service_data = self:buildServiceData(entity)
+--- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
+function HomeAssistant:apiStates(entity)
+    local url = string.format("%s/api/states/%s", base_url, entity.target)
 
-    elseif entity.attributes then
-        url = string.format("%s/api/states/%s", base_url, entity.target)
-        method = "GET"
-    else
-        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
-        return
-    end
-
-    -- Perform the request
-    local error, response_data = self:performRequest(entity, url, method, service_data)
-
-    -- Build and show message
-    self:buildMessage(entity, error, response_data)
+    local error, response_data = self:performRequest(entity, url, "GET", nil)
+    return error, response_data
 end
 
 --- Executes a REST request to Home Assistant
@@ -348,9 +360,10 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
 
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
-        response_content = self:formatTodoItems(response_data)
+        response_content = self:formatTodoItems(entity, response_data)
+    elseif entity.action == "weather.get_forecasts" then
+        response_content = self:formatForecasts(entity, response_data)
     else
-        -- TODO: Add response data support for other entity types
         -- Fallback message
         response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
     end
@@ -359,48 +372,138 @@ function HomeAssistant:buildResponseDataMessage(entity, response_data)
 end
 
 --- Format todo list items
-function HomeAssistant:formatTodoItems(response_data)
+function HomeAssistant:formatTodoItems(entity, response_data)
     local service_response = response_data.service_response
     local todo_content = ""
 
-    -- Iterate over service_response (key: entity_id -> value: todo_response)
-    -- We are using a for loop instead of 'local items = service_response[entity.target].items'
-    -- Because we might want to show more than one To-do list in the future
-    -- Currently we break the loop after the first target/entity_id
-    for _, todo_response in pairs(service_response) do
-        local items = todo_response.items
+    local items = service_response[entity.target].items
 
-        -- Validate that items is a table
-        if type(items) == "table" then
-            -- Handle empty list
-            if #items == 0 then
-                return "Your To-do list is empty."
-            end
-
-            local todo_parts = {}
-
-            -- PASS 1: Add only the active (non-completed) items first
-            for _, item in ipairs(items) do
-                if item.status == "needs_action" then
-                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_blank, tostring(item.summary)))
-                end
-            end
-
-            -- PASS 2: Add only the completed items at the bottom
-            for _, item in ipairs(items) do
-                if item.status == "completed" then
-                    table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_marked, tostring(item.summary)))
-                end
-            end
-
-            todo_content = table.concat(todo_parts, "\n")
-
-            -- Stop after the first entity's items are processed
-            break
+    -- Validate that items is a table
+    if type(items) == "table" then
+        -- Handle empty list
+        if #items == 0 then
+            return "Your To-do list is empty."
         end
+
+        local todo_parts = {}
+
+        -- PASS 1: Add only the active (non-completed) items first
+        for _, item in ipairs(items) do
+            if item.status == "needs_action" then
+                table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_blank, tostring(item.summary)))
+            end
+        end
+
+        -- PASS 2: Add only the completed items at the bottom
+        for _, item in ipairs(items) do
+            if item.status == "completed" then
+                table.insert(todo_parts, string.format("%s %s", Glyphs.checkbox_marked, tostring(item.summary)))
+            end
+        end
+
+        todo_content = table.concat(todo_parts, "\n")
     end
 
     return todo_content
+end
+
+--- Format forecast list
+function HomeAssistant:formatForecasts(entity, response_data)
+    local service_response = response_data.service_response
+
+    local display_fields = {
+        { key = "condition",     icon = Glyphs.weather,     label = "Cond." },
+        { key = "temperature",   icon = Glyphs.thermometer, label = "Temp.",   unit_name = "temperature_unit",   unit_value = "", append_key = "templow" },
+        { key = "precipitation", icon = Glyphs.umbrella,    label = "Precip.", unit_name = "precipitation_unit", unit_value = "" },
+        { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind.",   unit_name = "wind_speed_unit",    unit_value = "" },
+    }
+
+    -- Make a /api/states call to receive the actual value for unit_name = "temperature_unit" etc. and store it in unit_value
+    local error, state = self:apiStates(entity)
+
+    if not error and state and state.attributes then
+        for _, field in ipairs(display_fields) do
+            if field.unit_name then
+                -- Overwrite the placeholder with actual value from Home Assistant
+                field.unit_value = state.attributes[field.unit_name] or ""
+            end
+        end
+    end
+
+    -- Extract forecast list: [entry1, entry2, entry3, ...] where each entry = one day/hour
+    local forecast_list = service_response[entity.target].forecast
+
+    if type(forecast_list) == "table" then
+        if #forecast_list == 0 then
+            return "Weather forecast is unavailable."
+        end
+
+        local output_lines = {}
+        local max_entries = 3 -- Configurable limit
+
+        -- OUTER LOOP: Iterate through forecast_list
+        -- for i = start, end, step do
+        -- end = math.min(#forecast_list, max_entries); Returns the smaller of the two values
+        -- step = 1; increment is implicit
+        for entry_index = 1, math.min(#forecast_list, max_entries) do
+            -- Get the forecast entry for the current loop iteration.
+            -- This data point contains multiple fields (e.g. datetime: "...", condition: "sunny", temperature: 22 )
+            local forecast_entry = forecast_list[entry_index]
+
+            -- Format and display the date/time
+            if forecast_entry.datetime then
+                local date_line
+                local year, month, day, hour, min = forecast_entry.datetime:match(
+                    "^(%d%d%d%d)%-(%d%d)%-(%d%d)T(%d%d):(%d%d)%S*")
+                local timestamp = os.time({ year = year, month = month, day = day, hour = hour, min = min })
+
+                if entity.data.type == "hourly" then
+                    date_line = Glyphs.calendar_clock .. " Time: " .. os.date("%H:%M", timestamp)
+                else
+                    date_line = Glyphs.calendar_clock .. " Date: " .. os.date("%a %Y-%m-%d", timestamp)
+                end
+                table.insert(output_lines, date_line)
+            end
+
+            -- INNER LOOP: Iterate through display fields (each field = one weather attribute)
+            -- For each field.key, extract corresponding data from forecast_entry and format it
+            for _, field in ipairs(display_fields) do
+                -- Extract the data value using field.key (e.g., forecast_entry["temperature"] = 22)
+                -- field.key -> what to extract, field_value -> actual data
+                local field_value = forecast_entry[field.key]
+
+                if field_value then
+                    local formatted_value = tostring(field_value)
+                    -- Text can be appeneded to formatted_value in the following if statements:
+
+                    -- Handle append fields (e.g., temperature & templow: "22 / 15")
+                    if field.append_key then
+                        local append_value = forecast_entry[field.append_key]
+                        if append_value then
+                            local formatted_apend_value = tostring(append_value)
+                            formatted_value = formatted_value .. " / " .. formatted_apend_value
+                        end
+                    end
+
+                    -- Append unit if this field has unit support (e.g., "22" becomes "22 °C")
+                    if field.unit_value and field.unit_value ~= "" then
+                        formatted_value = formatted_value .. " " .. field.unit_value
+                    end
+
+                    table.insert(output_lines, string.format("%s %s: %s",
+                        field.icon, field.label, formatted_value))
+                end
+            end
+
+            -- Add separator between forecast entries (but not after the last one)
+            if entry_index < max_entries and entry_index < #forecast_list then
+                table.insert(output_lines, "────────────────")
+            end
+        end
+
+        -- Join all formatted lines with newlines and return
+        return table.concat(output_lines, "\n")
+    end
 end
 
 return HomeAssistant
