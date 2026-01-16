@@ -27,7 +27,7 @@
 ## Installation
 
 ### Step 1: Download the Plugin
-[Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant_koreader_plugin.zip`:  
+[Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`:  
 
 ### Step 2: Edit `config.lua`
 
@@ -42,10 +42,7 @@ Tip: You can install and configure the plugin in KOReader for macOS or Linux fir
 
 After editing `config.lua`, copy the files to your KOReader device:
 
-* **Copy the entire `homeassistant.koplugin` folder into `koreader/plugins/`**  
-* Optional: Copy the `icons` folder to `koreader/`  
-  _Replaces the default “ⓘ” InfoMessage icon with the Home Assistant icon._  
-  _Visual change only; does not affect plugin functionality._
+**Copy the entire `homeassistant.koplugin` folder into `koreader/plugins/`**  
 
 ### Step 4: Restart KOReader
 
