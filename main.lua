@@ -6,8 +6,6 @@ local InfoMessage = require("ui/widget/infomessage")
 local UIManager = require("ui/uimanager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local _ = require("gettext")
-local DataStorage = require("datastorage")
-local lfs = require("libs/libkoreader-lfs")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
@@ -17,12 +15,6 @@ local ok, ha_config = pcall(require, "debug_config")
 if not ok then
     ha_config = require("config")
 end
-
---- InfoMessage Icon Check
--- If '/icons/homeassistant.svg' exists, use it as icon in InfoMessage
-local icon_path = DataStorage:getDataDir() .. "/icons/homeassistant.svg"
-local file_mode = lfs.attributes(icon_path, "mode")
-local icon = file_mode == "file" and "homeassistant" or "notice-info"
 
 --- Define font glyphs
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
