@@ -31,10 +31,6 @@ local HomeAssistant = WidgetContainer:extend {
 
 --- Initialize the plugin
 function HomeAssistant:init()
-    -- "Mix in" the messages functions
-    for name, func in pairs(Messages) do
-        self[name] = func
-    end
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 end
@@ -80,10 +76,10 @@ end
 --- Handle ActivateHAEvent
 -- Flow: determine endpoint -> call API method -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local error, response_data
+    local error, response_data, extra_data
 
     if entity.action then
-        error, response_data = self:apiServices(entity)
+        error, response_data, extra_data = self:apiServices(entity)
     elseif entity.template then
         error, response_data = self:apiTemplate(entity)
     elseif entity.attributes then
@@ -93,7 +89,7 @@ function HomeAssistant:onActivateHAEvent(entity)
         return
     end
 
-    self:buildMessage(entity, error, response_data)
+    self:buildMessage(entity, error, response_data, extra_data)
 end
 
 --- Trim leading and trailing whitespace from each line of a multi-line string
@@ -148,7 +144,17 @@ function HomeAssistant:apiServices(entity)
     end
 
     local error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return error, response_data
+
+    -- Fetch state data for weather forecasts to get units
+    local extra_data = nil
+    if not error and entity.action == "weather.get_forecasts" then
+        local state_error, state = self:apiStates(entity)
+        if not state_error then
+            extra_data = state
+        end
+    end
+
+    return error, response_data, extra_data
 end
 
 --- POST /api/template - Evaluate a Home Assistant template
@@ -224,19 +230,19 @@ end
 
 --- Build user-facing message based on API response
 -- all other messages related code is located in messages.lua
-function HomeAssistant:buildMessage(entity, error, response_data)
+function HomeAssistant:buildMessage(entity, error, response_data, extra_data)
     -- on Error:
     if error == true then
-        self:buildErrorMessage(entity, response_data)
+        Messages:buildErrorMessage(entity, response_data)
         -- on Success:
     elseif entity.template then
-        self:buildTemplateMessage(entity, response_data)
+        Messages:buildTemplateMessage(entity, response_data)
     elseif entity.action and entity.response_data then
-        self:buildResponseDataMessage(entity, response_data)
+        Messages:buildResponseDataMessage(entity, response_data, extra_data)
     elseif entity.action then
-        self:buildActionMessage(entity)
+        Messages:buildActionMessage(entity)
     elseif entity.attributes then
-        self:buildStateMessage(entity, response_data)
+        Messages:buildStateMessage(entity, response_data)
     end
 end
 

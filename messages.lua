@@ -110,14 +110,14 @@ function Messages:formatAttributeValue(value)
 end
 
 --- Build success message for actions with response_data
-function Messages:buildResponseDataMessage(entity, response_data)
+function Messages:buildResponseDataMessage(entity, response_data, extra_data)
     local response_content
 
     -- Handle different kind of actions which use "?return_response"
     if entity.action == "todo.get_items" then
         response_content = self:formatTodoItems(entity, response_data)
     elseif entity.action == "weather.get_forecasts" then
-        response_content = self:formatForecasts(entity, response_data)
+        response_content = self:formatForecasts(entity, response_data, extra_data)
     else
         -- Fallback message
         response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
@@ -163,7 +163,7 @@ function Messages:formatTodoItems(entity, response_data)
 end
 
 --- Format forecast list
-function Messages:formatForecasts(entity, response_data)
+function Messages:formatForecasts(entity, response_data, extra_data)
     local service_response = response_data.service_response
 
     local display_fields = {
@@ -173,10 +173,10 @@ function Messages:formatForecasts(entity, response_data)
         { key = "wind_speed",    icon = Glyphs.wind_speed,  label = "Wind.",   unit_name = "wind_speed_unit",    unit_value = "" },
     }
 
-    -- Make a /api/states call to receive the actual value for unit_name = "temperature_unit" etc. and store it in unit_value
-    local error, state = self:apiStates(entity)
+    -- Process /api/states call to receive the actual value for unit_name = "temperature_unit" etc. and store it in unit_value
+    local state = extra_data
 
-    if not error and state and state.attributes then
+    if state and state.attributes then
         for _, field in ipairs(display_fields) do
             if field.unit_name then
                 -- Overwrite the placeholder with actual value from Home Assistant
