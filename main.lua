@@ -138,9 +138,10 @@ function HomeAssistant:apiServices(entity)
         end
     end
 
+    -- 1) Fetch Primary Data
     local error, response_data = self:performRequest(entity, url, "POST", service_data)
 
-    -- Fetch state data for weather forecasts to get units
+    -- 2) Fetch state data for weather forecasts to get units
     local extra_data = nil
     if not error and entity.action == "weather.get_forecasts" then
         local state_error, state = self:apiStates(entity)
