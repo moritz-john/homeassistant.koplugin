@@ -4,6 +4,7 @@
 local _ = require("gettext")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
+local UIManager = require("ui/uimanager")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
@@ -28,6 +29,7 @@ local HomeAssistant = WidgetContainer:extend {
 function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
+    self:sendHeartbeat("on")
 end
 
 --- Register dispatcher actions for each Home Assistant entity
@@ -240,6 +242,31 @@ function HomeAssistant:buildMessage(entity, error, response_data, extra_data)
     elseif entity.attributes then
         Messages:buildStateMessage(entity, response_data)
     end
+end
+
+--- Send the current KOReader state to Home Assistant
+function HomeAssistant:sendHeartbeat(state)
+    local entity_id = "sensor.koreader_status"
+    local url = string.format("%s/api/states/%s", base_url, entity_id)
+    local service_data = {
+        state = state,
+        attributes = {
+            friendly_name = "KOReader Status",
+            icon = state == "on" and "mdi:book-variant" or "mdi:book-off"
+        }
+    }
+    self:performRequest({}, url, "POST", service_data)
+end
+
+function HomeAssistant:onSuspend()
+    self:sendHeartbeat("off")
+end
+
+-- Send "on" state with a delay of 4 seconds (so that the device can reconnect to wifi first)
+function HomeAssistant:onResume()
+    UIManager:scheduleIn(4, function()
+        self:sendHeartbeat("on")
+    end)
 end
 
 return HomeAssistant
