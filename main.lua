@@ -20,13 +20,8 @@ local protocol = ha_config.https == true and "https" or "http"
 local base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
 
 local HomeAssistant = WidgetContainer:extend {
-    name                     = "homeassistant",
-    is_doc_only              = false,
-    -- timeout values in seconds
-    HTTP_TIMEOUT             = 6,
-    SIMPLE_MESSAGE_TIMEOUT   = 5,
-    RESPONSE_MESSAGE_TIMEOUT = nil,
-    ERROR_MESSAGE_TIMEOUT    = nil,
+    name         = "homeassistant",
+    is_doc_only  = false,
 }
 
 --- Initialize the plugin
@@ -177,7 +172,7 @@ end
 --- Executes a REST request to Home Assistant
 -- Only POST requests include service_data / request_body / source
 function HomeAssistant:performRequest(entity, url, method, service_data)
-    http.TIMEOUT = self.HTTP_TIMEOUT
+    http.TIMEOUT = 6 -- in seconds
 
     local request_body = service_data and rapidjson.encode(service_data) or nil
 

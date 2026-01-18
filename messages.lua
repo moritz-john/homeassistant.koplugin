@@ -5,7 +5,12 @@ local rapidjson = require("rapidjson")
 
 local Messages = {}
 
---- Define font glyphs
+-- Define message timeouts (in seconds)
+SIMPLE_MESSAGE_TIMEOUT   = 5
+RESPONSE_MESSAGE_TIMEOUT = nil
+ERROR_MESSAGE_TIMEOUT    = nil
+
+-- Define font glyphs
 -- Reference font: koreader/fonts/nerdfonts/symbols.ttf
 local Glyphs = {
     checkbox_blank = "\u{E830}",
@@ -37,18 +42,18 @@ end
 --- Build error message
 function Messages:buildErrorMessage(entity, response_data)
     local error_content = string.format("⏵ Details:\n%s", response_data)
-    self:showMessage("𝙀𝙧𝙧𝙤𝙧", entity, error_content, self.ERROR_MESSAGE_TIMEOUT)
+    self:showMessage("𝙀𝙧𝙧𝙤𝙧", entity, error_content, ERROR_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for actions / POST requests
 function Messages:buildActionMessage(entity)
     local action_content = string.format("action: %s", entity.action)
-    self:showMessage("𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯", entity, action_content, self.SIMPLE_MESSAGE_TIMEOUT)
+    self:showMessage("𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯", entity, action_content, SIMPLE_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for template evaluation
 function Messages:buildTemplateMessage(entity, response_data)
-    self:showMessage("𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦", entity, response_data, self.RESPONSE_MESSAGE_TIMEOUT)
+    self:showMessage("𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦", entity, response_data, RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Build success message for state / GET requests
@@ -86,7 +91,7 @@ function Messages:buildStateMessage(entity, response_data)
         attribute_content = "No attributes configured for this entity."
     end
 
-    self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, self.RESPONSE_MESSAGE_TIMEOUT)
+    self:showMessage("𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦", entity, attribute_content, RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Helper function to format any state attribute value into a string
@@ -123,7 +128,7 @@ function Messages:buildResponseDataMessage(entity, response_data, extra_data)
         response_content = "Configuration error:\nCheck the documentation 'Response Data' section."
     end
 
-    self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, self.RESPONSE_MESSAGE_TIMEOUT)
+    self:showMessage("𝘙𝘦𝘴𝘱𝘰𝘯𝘴𝘦 𝘋𝘢𝘵𝘢", entity, response_content, RESPONSE_MESSAGE_TIMEOUT)
 end
 
 --- Format todo list items
