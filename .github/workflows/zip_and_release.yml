@@ -21,16 +21,15 @@ jobs:
       - name: Prepare folder structure
         run: |
           mkdir -p homeassistant.koplugin
-          cp main.lua config.lua _meta.lua homeassistant.koplugin/
-          # icons folder already exists in repo; no copy needed
+          cp main.lua messages.lua config.lua _meta.lua homeassistant.koplugin/
 
       - name: Create ZIP archive
-        run: zip -r homeassistant_koreader_plugin.zip homeassistant.koplugin icons
+        run: zip -r homeassistant.koplugin.zip homeassistant.koplugin
 
       - name: Upload Release
         uses: ncipollo/release-action@v1.20.0
         with:
-          artifacts: "homeassistant_koreader_plugin.zip"
-          name: "homeassistant_koreader_plugin.zip"
+          artifacts: "homeassistant.koplugin.zip"
+          name: "homeassistant.koplugin.zip"
           tag: ${{ github.event.inputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
