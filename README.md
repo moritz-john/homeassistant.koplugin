@@ -439,8 +439,8 @@ Result:
 </p>
 
 ## Requirements
-- KOReader 2024.x or newer (tested with: 2025.10 "Ghost" on a Kindle Basic 2024)  
-- Home Assistant instance with a Long-Lived Access Token
+- KOReader (tested with: 2025.10 "Ghost" on a Kindle Basic 2024)  
+- Home Assistant & a Long-Lived Access Token
 
 ## Screenshots
 
