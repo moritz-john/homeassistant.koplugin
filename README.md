@@ -1,5 +1,7 @@
 # homeassistant.koplugin
 
+> In case you are coming from [koreader/contrib](https://github.com/koreader/contrib), make sure that you checkout [the latest commit](https://github.com/moritz-john/homeassistant.koplugin).
+
 <p align="center">
   Jump to the <a href="#installation">[Installation]</a>, <a href="#configuration">[Configuration]</a> or <a href="#examples">[Examples]</a> section
 </p>
