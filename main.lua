@@ -21,8 +21,8 @@ local protocol = ha_config.https == true and "https" or "http"
 local base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
 
 local HomeAssistant = WidgetContainer:extend {
-    name         = "homeassistant",
-    is_doc_only  = false,
+    name        = "homeassistant",
+    is_doc_only = false,
 }
 
 --- Initialize the plugin
