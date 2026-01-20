@@ -29,7 +29,11 @@ local HomeAssistant = WidgetContainer:extend {
 function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
-    self:sendHeartbeat("on")
+    -- Guard to ensure sendHeartbeat is only sent once at startup
+    if not HomeAssistant._initialized then
+        HomeAssistant._initialized = true
+        self:sendHeartbeat("on")
+    end
 end
 
 --- Register dispatcher actions for each Home Assistant entity
