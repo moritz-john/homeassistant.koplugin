@@ -11,6 +11,14 @@
   <i>homeassistant.koplugin: a template query [left] & QuickMenu gesture [right]</i>
 </p>
 
+<p align="center">
+<img src="assets/ha_koreader_sensor.png" />
+  <i>KOReader status sensor in Home Assistant</i>
+</p>
+
+
+
+
 ## Features
 
 - Control any number of Home Assistant entities from KOReader 
@@ -263,6 +271,19 @@ Go to your **Home Assistant instance → Developer Tools → Template**
 Use the [template editor](https://my.home-assistant.io/redirect/developer_template/) to test your code before pasting it into the `template = [[...]]` section of your config.
 
 <img src="assets/template_editor.png" style="width:100%; height:auto;" />
+
+## KOReader Home Assistant status sensor
+
+The plugin automatically sends the current KOReader status (on/off) to the Home Assistant sensor `sensor.koreader_status`.  
+This sensor state can be used to drive any type of automation.
+
+<img src="assets/ha_koreader_sensor.png" style="width:80%; height:auto;" />
+
+<br>
+
+> [!NOTE]
+> **Caveats:**  
+> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent only on start/resume/suspend and will fail silently if Home Assistant or Wi-Fi is unavailable.
 
 ## Examples
 
