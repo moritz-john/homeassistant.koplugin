@@ -283,7 +283,7 @@ This sensor state can be used to drive any type of automation.
 
 > [!NOTE]
 > **Caveats:**  
-> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent only on start/resume/suspend and will fail silently if Home Assistant or Wi-Fi is unavailable.
+> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent only on start/resume/suspend and will fail silently if Home Assistant or Wi-Fi is unavailable. The onResume state gets send with a 4-second delay.
 
 ## Examples
 
