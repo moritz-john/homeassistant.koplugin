@@ -5,6 +5,8 @@ local _ = require("gettext")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
+local Device = require("device")
+local powerd = Device:getPowerDevice()
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
@@ -252,11 +254,25 @@ end
 function HomeAssistant:sendHeartbeat(state)
     local entity_id = "binary_sensor.koreader_status"
     local url = string.format("%s/api/states/%s", base_url, entity_id)
+
+    -- Get battery information
+    local battery_level = rapidjson.null
+    local is_charging = false
+
+    if Device:hasBattery() then
+        battery_level = powerd:getCapacity()
+        is_charging = powerd:isCharging()
+    end
+
     local service_data = {
         state = state,
         attributes = {
             friendly_name = "KOReader Status",
-            icon = state == "on" and "mdi:book-variant" or "mdi:book-off"
+            icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
+            device_model = Device.model,
+            battery_level = battery_level,
+            is_charging = is_charging,
+            last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
     self:performRequest({}, url, "POST", service_data)
