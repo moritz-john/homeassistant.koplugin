@@ -6,6 +6,9 @@ return {
     token =                -- Change to your own Long-Lived Access Token
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 
+    -- KOplugin settings
+    koreader_sensor_name = "koreader_status", -- Name of the binary_sensor in Home Assistant (e.g., binary_sensor.koreader_status)
+
     -- Home Assistant Entity configuration
     -- Documentation: https://github.com/moritz-john/homeassistant.koplugin
     entities = {

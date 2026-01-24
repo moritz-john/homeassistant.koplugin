@@ -252,8 +252,8 @@ end
 
 --- Send the current KOReader state to Home Assistant
 function HomeAssistant:sendHeartbeat(state)
-    local entity_id = "binary_sensor.koreader_status"
-    local url = string.format("%s/api/states/%s", base_url, entity_id)
+    local sensor_name = ha_config.koreader_sensor_name or "koreader_status"
+    local url = string.format("%s/api/states/binary_sensor.%s", base_url, sensor_name)
 
     -- Get battery information
     local battery_level = rapidjson.null
