@@ -67,7 +67,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
 
     table.insert(sub_items, {
-        text = _("\u{ECF5} Send State on Sleep/Wake to HA"),
+        text = _("Send KOReader status to HA"),
         separator = true,
         -- checked_func determines if the checkbox is shown as checked
         checked_func = function()
