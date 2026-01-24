@@ -16,9 +16,6 @@
   <i>KOReader status sensor in Home Assistant</i>
 </p>
 
-
-
-
 ## Features
 
 - Control any number of Home Assistant entities from KOReader 
@@ -274,16 +271,22 @@ Use the [template editor](https://my.home-assistant.io/redirect/developer_templa
 
 ## KOReader Home Assistant status sensor
 
-The plugin automatically sends the current KOReader status (on/off) to the Home Assistant sensor `sensor.koreader_status`.  
-This sensor state can be used to drive any type of automation.
+The plugin can send KOReader's current state (on/off) to a Home Assistant binary sensor. This sensor can be used to trigger automations based on your reading activity.  
+By default, the sensor is created as `binary_sensor.koreader_status`. You can customize the sensor name in your `config.lua`.
 
-<img src="assets/ha_koreader_sensor.png" style="width:80%; height:auto;" />
+<img src="assets/ha_koreader_sensor.png" style="width:60%; height:auto;" />
+
+The sensor includes the following attributes: `device_model`, `battery_level`, `is_charging` and `last_seen`.
+
+You can enable or disable this feature under  **Tools → Home Assistant:** 
+
+<img src="assets/heartbeat_toggle.png" style="width:60%; height:auto;" />
 
 <br>
 
 > [!NOTE]
 > **Caveats:**  
-> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent only on start/resume/suspend and will fail silently if Home Assistant or Wi-Fi is unavailable. The onResume state gets send with a 4-second delay.
+> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent only on start/resume/suspend and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 4-second delay.
 
 ## Examples
 
