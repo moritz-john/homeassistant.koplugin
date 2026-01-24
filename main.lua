@@ -27,12 +27,19 @@ local HomeAssistant = WidgetContainer:extend {
     is_doc_only = false,
 }
 
+HomeAssistant.default_settings = {
+    heartbeat_enabled = false
+}
+
 --- Initialize the plugin
 function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
+
+    self.settings = G_reader_settings:readSetting("homeassistant", self.default_settings)
+
     -- Guard to ensure sendHeartbeat is only sent once at startup
-    if not HomeAssistant._initialized then
+    if not HomeAssistant._initialized and self.settings.heartbeat_enabled then
         HomeAssistant._initialized = true
         self:sendHeartbeat("on")
     end
@@ -56,10 +63,34 @@ function HomeAssistant:onDispatcherRegisterActions()
 end
 
 --- Add Home Assistant submenu to the Tools menu
--- Creates a menu item for each configured entity
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
 
+    table.insert(sub_items, {
+        text = _("\u{ECF5} Send State on Sleep/Wake to HA"),
+        separator = true,
+        -- checked_func determines if the checkbox is shown as checked
+        checked_func = function()
+            return self.settings.heartbeat_enabled -- Read from in-memory settings
+        end,
+        -- callback is executed when the user toggles the checkbox
+        callback = function()
+            -- Toggle the value in settings
+            self.settings.heartbeat_enabled = not self.settings.heartbeat_enabled
+            -- Save the settings table to settings.reader.lua under the "homeassistant" key
+            G_reader_settings:saveSetting("homeassistant", self.settings)
+            -- Force immediate settings write to disk
+            G_reader_settings:flush()
+            -- Immediate action: update HA status based on the new toggle state
+            if self.settings.heartbeat_enabled then
+                self:sendHeartbeat("on")
+            else
+                self:sendHeartbeat("off")
+            end
+        end,
+    })
+
+    -- Add a menu item for each configured Home Assistant entity
     for _, entity in ipairs(ha_config.entities) do
         table.insert(sub_items, {
             text = entity.label,
@@ -279,14 +310,18 @@ function HomeAssistant:sendHeartbeat(state)
 end
 
 function HomeAssistant:onSuspend()
-    self:sendHeartbeat("off")
+    if self.settings.heartbeat_enabled then
+        self:sendHeartbeat("off")
+    end
 end
 
 -- Send "on" state with a delay of 4 seconds (so that the device can reconnect to wifi first)
 function HomeAssistant:onResume()
-    UIManager:scheduleIn(4, function()
-        self:sendHeartbeat("on")
-    end)
+    if self.settings.heartbeat_enabled then
+        UIManager:scheduleIn(4, function()
+            self:sendHeartbeat("on")
+        end)
+    end
 end
 
 return HomeAssistant
