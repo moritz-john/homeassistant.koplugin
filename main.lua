@@ -42,7 +42,7 @@ function HomeAssistant:init()
     -- Guard to ensure sendHeartbeat is only sent once at startup
     if not HomeAssistant._initialized and self.settings.heartbeat_enabled then
         HomeAssistant._initialized = true
-        self:sendHeartbeat("on")
+        self:sendHeartbeat("on", true)
     end
 end
 
@@ -84,9 +84,9 @@ function HomeAssistant:addToMainMenu(menu_items)
             G_reader_settings:flush()
             -- Immediate action: update HA status based on the new toggle state
             if self.settings.heartbeat_enabled then
-                self:sendHeartbeat("on")
+                self:sendHeartbeat("on", true)
             else
-                self:sendHeartbeat("off")
+                self:sendHeartbeat("off", false)
             end
         end,
     })
@@ -283,14 +283,21 @@ function HomeAssistant:buildMessage(entity, error, response_data, extra_data)
 end
 
 --- Send the current KOReader state to Home Assistant
-function HomeAssistant:sendHeartbeat(state)
+function HomeAssistant:sendHeartbeat(state, book_information)
     if not NetworkMgr:isConnected() then
-        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
+        logger.info("[HomeAssistant]: not connected to a network, skipping heartbeat")
         return
     end
 
     local sensor_name = ha_config.koreader_sensor_name or "koreader_status"
     local url = string.format("%s/api/states/binary_sensor.%s", base_url, sensor_name)
+
+    local book_title, book_author = rapidjson.null, rapidjson.null
+
+    if book_information and self.ui and self.ui.doc_props then
+        book_title = self.ui.doc_props.display_title or "Unknown Book"
+        book_author = self.ui.doc_props.authors:gsub("\n", ", ") or "Unknown Author"
+    end
 
     local service_data = {
         state = state,
@@ -298,10 +305,11 @@ function HomeAssistant:sendHeartbeat(state)
             friendly_name = "KOReader Status",
             icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
             device_model = Device.model,
+            book_title = book_title,
+            book_author = book_author,
             last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
-
     local error, response = self:performRequest({}, url, "POST", service_data)
 
     if error then
@@ -313,7 +321,7 @@ function HomeAssistant:onSuspend()
     if self.settings.heartbeat_enabled then
         -- Prevent delayed "on" heartbeat from overriding "off" state
         UIManager:unschedule(self.sendHeartbeat)
-        self:sendHeartbeat("off")
+        self:sendHeartbeat("off", false)
     end
 end
 
@@ -321,7 +329,7 @@ function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
         -- Wait 4s for WiFi, then send "on"
         -- scheduleIn(delay, function, arg1, arg2...)
-        UIManager:scheduleIn(4, self.sendHeartbeat, self, "on")
+        UIManager:scheduleIn(4, self.sendHeartbeat, self, "on", true)
     end
 end
 
