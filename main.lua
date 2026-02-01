@@ -285,7 +285,7 @@ end
 --- Send the current KOReader state to Home Assistant
 function HomeAssistant:sendHeartbeat(state, book_information)
     if not NetworkMgr:isConnected() then
-        logger.info("[HomeAssistant]: not connected to a network, skipping heartbeat")
+        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
         return
     end
 
@@ -314,6 +314,19 @@ function HomeAssistant:sendHeartbeat(state, book_information)
 
     if error then
         logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
+    end
+end
+
+--- Called when document is fully loaded
+function HomeAssistant:onReaderReady()
+    if self.settings.heartbeat_enabled then
+        self:sendHeartbeat("on", true)
+    end
+end
+
+function HomeAssistant:onCloseDocument()
+    if self.settings.heartbeat_enabled then
+        self:sendHeartbeat("on", false)
     end
 end
 
