@@ -6,6 +6,8 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
 local Device = require("device")
+local logger = require("logger")
+local NetworkMgr = require("ui/network/manager")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
@@ -282,6 +284,11 @@ end
 
 --- Send the current KOReader state to Home Assistant
 function HomeAssistant:sendHeartbeat(state)
+    if not NetworkMgr:isConnected() then
+        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
+        return
+    end
+
     local sensor_name = ha_config.koreader_sensor_name or "koreader_status"
     local url = string.format("%s/api/states/binary_sensor.%s", base_url, sensor_name)
 
@@ -294,7 +301,12 @@ function HomeAssistant:sendHeartbeat(state)
             last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
-    self:performRequest({}, url, "POST", service_data)
+
+    local error, response = self:performRequest({}, url, "POST", service_data)
+
+    if error then
+        logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
+    end
 end
 
 function HomeAssistant:onSuspend()
