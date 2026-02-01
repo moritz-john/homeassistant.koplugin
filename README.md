@@ -276,7 +276,7 @@ By default, the sensor is created as `binary_sensor.koreader_status`. You can cu
 
 <img src="assets/ha_koreader_sensor.png" style="width:60%; height:auto;" />
 
-The sensor includes the following attributes: `device_model`, `battery_level`, `is_charging` and `last_seen`.
+The sensor includes the following attributes: `device_model`, `book_title`, `book_author` and `last_seen`.
 
 You can enable or disable this feature under  **Tools → Home Assistant:** 
 
@@ -286,7 +286,7 @@ You can enable or disable this feature under  **Tools → Home Assistant:**
 
 > [!NOTE]
 > **Caveats:**  
-> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent only on start/resume/suspend and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 4-second delay.
+> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent on start/resume/suspend & document open/close and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 4-second delay.
 
 ## Examples
 
