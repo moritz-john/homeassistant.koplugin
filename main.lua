@@ -296,7 +296,7 @@ function HomeAssistant:sendHeartbeat(state, book_information)
 
     if book_information and self.ui and self.ui.doc_props then
         book_title = self.ui.doc_props.display_title or "Unknown Book"
-        book_author = self.ui.doc_props.authors:gsub("\n", ", ") or "Unknown Author"
+        book_author = (self.ui.doc_props.authors and self.ui.doc_props.authors:gsub("\n", ", ")) or "Unknown Author"
     end
 
     local service_data = {
