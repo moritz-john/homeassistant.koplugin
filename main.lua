@@ -6,6 +6,7 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
 local Device = require("device")
+local powerd = Device:getPowerDevice()
 local logger = require("logger")
 local NetworkMgr = require("ui/network/manager")
 local http = require("socket.http")
@@ -299,6 +300,15 @@ function HomeAssistant:sendHeartbeat(state, book_information)
         book_author = (self.ui.doc_props.authors and self.ui.doc_props.authors:gsub("\n", ", ")) or "Unknown Author"
     end
 
+    -- Get battery information
+    local battery_level = rapidjson.null
+    local is_charging = false
+
+    if Device:hasBattery() then
+        battery_level = powerd:getCapacity()
+        is_charging = powerd:isCharging()
+    end
+
     local service_data = {
         state = state,
         attributes = {
@@ -307,6 +317,8 @@ function HomeAssistant:sendHeartbeat(state, book_information)
             device_model = Device.model,
             book_title = book_title,
             book_author = book_author,
+            battery_level = battery_level,
+            is_charging = is_charging,
             last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
