@@ -350,7 +350,9 @@ end
 
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
-        self:sendHeartbeat("on", true)
+        NetworkMgr:runWhenConnected(function()
+            self:sendHeartbeat("on", true)
+        end)
     end
 end
 
