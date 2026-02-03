@@ -350,9 +350,7 @@ end
 
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
-        NetworkMgr:runWhenConnected(function()
-            UIManager:scheduleIn(1, self.sendHeartbeat, self, "on", true)
-        end)
+        self:sendHeartbeat("on", true)
     end
 end
 
