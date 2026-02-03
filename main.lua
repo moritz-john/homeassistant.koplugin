@@ -344,17 +344,15 @@ end
 
 function HomeAssistant:onSuspend()
     if self.settings.heartbeat_enabled then
-        -- Prevent delayed "on" heartbeat from overriding "off" state
-        UIManager:unschedule(self.sendHeartbeat)
         self:sendHeartbeat("off", false)
     end
 end
 
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
-        -- Wait 4s for WiFi, then send "on"
-        -- scheduleIn(delay, function, arg1, arg2...)
-        UIManager:scheduleIn(4, self.sendHeartbeat, self, "on", true)
+        NetworkMgr:runWhenConnected(function()
+            self:sendHeartbeat("on", true)
+        end)
     end
 end
 
