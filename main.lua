@@ -365,7 +365,7 @@ function HomeAssistant:waitForConnection(attempts, max_attempts, callback)
         logger.info("[HomeAssistant]: WiFi connected after", attempts * 0.25, "seconds")
         self._checking_connection = false
         -- Give the network stack a moment to fully initialize
-        UIManager:scheduleIn(1, callback)
+        UIManager:scheduleIn(2, callback)
     else
         UIManager:scheduleIn(0.25, self.waitForConnection, self, attempts + 1, max_attempts, callback)
     end
