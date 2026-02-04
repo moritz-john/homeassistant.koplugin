@@ -342,17 +342,51 @@ function HomeAssistant:onCloseDocument()
     end
 end
 
-function HomeAssistant:onSuspend()
-    if self.settings.heartbeat_enabled then
-        self:sendHeartbeat("off", false)
+function HomeAssistant:waitForConnection(attempts, max_attempts, callback)
+    attempts = attempts or 0
+    max_attempts = max_attempts or 40 -- 10 seconds total (40 * 0.25s)
+
+    -- Guard: prevent multiple checks from running
+    if attempts == 0 then
+        if self._checking_connection then
+            logger.info("[HomeAssistant]: Connection check already in progress")
+            return
+        end
+        self._checking_connection = true
+    end
+
+    if attempts >= max_attempts then
+        logger.info("[HomeAssistant]: WiFi didn't connect after", max_attempts * 0.25, "seconds")
+        self._checking_connection = false
+        return
+    end
+
+    if NetworkMgr:isConnected() then
+        logger.info("[HomeAssistant]: WiFi connected after", attempts * 0.25, "seconds")
+        self._checking_connection = false
+        -- Give the network stack a moment to fully initialize
+        UIManager:scheduleIn(1, callback)
+    else
+        UIManager:scheduleIn(0.25, self.waitForConnection, self, attempts + 1, max_attempts, callback)
     end
 end
 
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
-        NetworkMgr:runWhenConnected(function()
+        self:waitForConnection(0, 40, function()
             self:sendHeartbeat("on", true)
         end)
+    end
+end
+
+function HomeAssistant:onSuspend()
+    if self.settings.heartbeat_enabled then
+        if self._checking_connection then
+            UIManager:unschedule(self.waitForConnection)
+            logger.info("[HomeAssistant]: Unscheduled connection check on suspend")
+        end
+        self._checking_connection = false
+        self:sendHeartbeat("off", false)
     end
 end
 
