@@ -85,8 +85,10 @@ function HomeAssistant:addToMainMenu(menu_items)
             G_reader_settings:flush()
             -- Immediate action: update HA status based on the new toggle state
             if self.settings.heartbeat_enabled then
+                self._cancel_heartbeat = false
                 self:sendHeartbeat("on", true)
             else
+                self._cancel_heartbeat = false
                 self:sendHeartbeat("off", false)
             end
         end,
@@ -329,6 +331,48 @@ function HomeAssistant:sendHeartbeat(state, book_information)
     end
 end
 
+--- Poll for WiFi connection without blocking UI
+-- Checks every 0.25s for up to 10 seconds if WiFi has connected
+function HomeAssistant:waitForConnection(attempts, max_attempts, callback)
+    attempts = attempts or 0
+    max_attempts = max_attempts or 40 -- 10 seconds total (40 * 0.25s)
+
+    -- Guard: prevent multiple checks from running
+    if attempts == 0 then
+        if self._checking_connection then
+            logger.info("[HomeAssistant]: 'waitForConnection()' already in progress")
+            return
+        end
+        self._checking_connection = true
+    end
+
+    -- Timeout: give up after max_attempts
+    if attempts >= max_attempts then
+        logger.info("[HomeAssistant]: 'waitForConnection' failed after", max_attempts * 0.25, "seconds")
+        self._checking_connection = false
+        return
+    end
+
+    -- Success: WiFi is connected
+    if NetworkMgr:isConnected() then
+        logger.info("[HomeAssistant]: 'waitForConnection' success after", attempts * 0.25, "seconds")
+        self._checking_connection = false
+
+        -- Wait 2 seconds for the network stack to fully initialize
+        UIManager:scheduleIn(2, function()
+            -- Guard: check if the user put the device back to sleep already
+            if not self._cancel_heartbeat then
+                callback() -- Network is ready, execute the callback
+            else
+                logger.info("[HomeAssistant]: 'waitForConnection': cancelled pending heartbeat due to suspend")
+            end
+        end)
+    else
+        -- WiFi not connected yet - schedule another check in 0.25s
+        UIManager:scheduleIn(0.25, self.waitForConnection, self, attempts + 1, max_attempts, callback)
+    end
+end
+
 --- Called when document is fully loaded
 function HomeAssistant:onReaderReady()
     if self.settings.heartbeat_enabled then
@@ -342,37 +386,11 @@ function HomeAssistant:onCloseDocument()
     end
 end
 
-function HomeAssistant:waitForConnection(attempts, max_attempts, callback)
-    attempts = attempts or 0
-    max_attempts = max_attempts or 40 -- 10 seconds total (40 * 0.25s)
-
-    -- Guard: prevent multiple checks from running
-    if attempts == 0 then
-        if self._checking_connection then
-            logger.info("[HomeAssistant]: Connection check already in progress")
-            return
-        end
-        self._checking_connection = true
-    end
-
-    if attempts >= max_attempts then
-        logger.info("[HomeAssistant]: WiFi didn't connect after", max_attempts * 0.25, "seconds")
-        self._checking_connection = false
-        return
-    end
-
-    if NetworkMgr:isConnected() then
-        logger.info("[HomeAssistant]: WiFi connected after", attempts * 0.25, "seconds")
-        self._checking_connection = false
-        -- Give the network stack a moment to fully initialize
-        UIManager:scheduleIn(2, callback)
-    else
-        UIManager:scheduleIn(0.25, self.waitForConnection, self, attempts + 1, max_attempts, callback)
-    end
-end
-
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
+        -- Clear any cancellation flag from previous suspend
+        self._cancel_heartbeat = false
+        -- Start polling for WiFi connection, then send "on" heartbeat when ready
         self:waitForConnection(0, 40, function()
             self:sendHeartbeat("on", true)
         end)
@@ -381,11 +399,14 @@ end
 
 function HomeAssistant:onSuspend()
     if self.settings.heartbeat_enabled then
+        -- Cancel polling loop, prevent pending heartbeat, and reset guard flag
         if self._checking_connection then
             UIManager:unschedule(self.waitForConnection)
-            logger.info("[HomeAssistant]: Unscheduled connection check on suspend")
+            logger.info("[HomeAssistant]: Unscheduled 'waitForConnection()' on suspend")
         end
+        self._cancel_heartbeat = true
         self._checking_connection = false
+
         self:sendHeartbeat("off", false)
     end
 end
