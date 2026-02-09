@@ -44,6 +44,8 @@ function HomeAssistant:init()
     if not HomeAssistant._initialized and self.settings.heartbeat_enabled then
         HomeAssistant._initialized = true
         self:sendHeartbeat("on", true)
+        UIManager:unschedule(self.heartbeatLoop)
+        self:heartbeatLoop(true)  -- Start loop, skip immediate send
     end
 end
 
@@ -86,10 +88,12 @@ function HomeAssistant:addToMainMenu(menu_items)
             -- Immediate action: update HA status based on the new toggle state
             if self.settings.heartbeat_enabled then
                 self._cancel_heartbeat = false
-                self:sendHeartbeat("on", true)
+                UIManager:unschedule(self.heartbeatLoop)
+                self:heartbeatLoop(false)
             else
                 self._cancel_heartbeat = false
                 self:sendHeartbeat("off", false)
+                UIManager:unschedule(self.heartbeatLoop)
             end
         end,
     })
@@ -331,6 +335,15 @@ function HomeAssistant:sendHeartbeat(state, book_information)
     end
 end
 
+local HEARTBEAT_INTERVAL = 60 -- in seconds
+
+function HomeAssistant:heartbeatLoop(skip_first)
+    if not skip_first then
+        self:sendHeartbeat("on", true)
+    end
+    UIManager:scheduleIn(HEARTBEAT_INTERVAL, self.heartbeatLoop, self)
+end
+
 --- Poll for WiFi connection without blocking UI
 -- Checks every 0.25s for up to 10 seconds if WiFi has connected
 function HomeAssistant:waitForConnection(attempts, max_attempts, callback)
@@ -394,6 +407,7 @@ function HomeAssistant:onResume()
         self:waitForConnection(0, 40, function()
             self:sendHeartbeat("on", true)
         end)
+        self:heartbeatLoop(true)  -- Start loop, skip immediate send
     end
 end
 
@@ -407,6 +421,7 @@ function HomeAssistant:onSuspend()
         self._cancel_heartbeat = true
         self._checking_connection = false
 
+        UIManager:unschedule(self.heartbeatLoop)
         self:sendHeartbeat("off", false)
     end
 end
