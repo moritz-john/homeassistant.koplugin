@@ -19,17 +19,6 @@ function API:init(ha_config)
     self.sensor_name = ha_config.koreader_sensor_name or "koreader_status"
 end
 
---- Trim leading and trailing whitespace from each line of a multi-line string
--- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
--- Home Assistant without the extra indentation/whitespace from config.lua
-function API:trimWhitespace(str)
-    local lines = {}
-    for line in str:gmatch("[^\n]+") do
-        table.insert(lines, line:match("^%s*(.-)%s*$"))
-    end
-    return table.concat(lines, "\n")
-end
-
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
 function API:apiServices(entity)
     local domain, action = entity.action:match("^([^.]+)%.(.+)$")
@@ -70,7 +59,18 @@ end
 --- POST /api/template - Evaluate a Home Assistant template
 function API:apiTemplate(entity)
     local url = string.format("%s/api/template", self.base_url)
-    local service_data = { template = self:trimWhitespace(entity.template) }
+
+    -- Trim leading and trailing whitespace from each line of a multi-line string
+    -- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
+    -- Home Assistant without the extra indentation/whitespace from config.lua
+    local lines = {}
+    for line in entity.template:gmatch("[^\n]+") do
+        -- Trim whitespace from each line and store it
+        table.insert(lines, line:match("^%s*(.-)%s*$"))
+    end
+
+    local trimmed_template = table.concat(lines, "\n")
+    local service_data = { template = trimmed_template }
 
     local error, response_data = self:performRequest(entity, url, "POST", service_data)
     return error, response_data
