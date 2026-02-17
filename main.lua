@@ -36,8 +36,7 @@ function HomeAssistant:init()
     -- Guard to ensure sendHeartbeat is only sent once at startup
     if not HomeAssistant._initialized and self.settings.heartbeat_enabled then
         HomeAssistant._initialized = true
-        local book_title, book_author = self:getBookInfo()
-        API:sendHeartbeat("on", book_title, book_author)
+        API:sendHeartbeat("on", self:getBookInfo())
     end
 end
 
@@ -79,8 +78,7 @@ function HomeAssistant:addToMainMenu(menu_items)
             G_reader_settings:flush()
             -- Immediate action: update HA status based on the new toggle state
             if self.settings.heartbeat_enabled then
-                local book_title, book_author = self:getBookInfo()
-                API:sendHeartbeat("on", book_title, book_author)
+                API:sendHeartbeat("on", self:getBookInfo())
             else
                 API:sendHeartbeat("off")
             end
@@ -151,8 +149,7 @@ end
 --- Called when document is fully loaded
 function HomeAssistant:onReaderReady()
     if self.settings.heartbeat_enabled then
-        local book_title, book_author = self:getBookInfo()
-        API:sendHeartbeat("on", book_title, book_author)
+        API:sendHeartbeat("on", self:getBookInfo())
     end
 end
 
