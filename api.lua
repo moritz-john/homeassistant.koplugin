@@ -48,8 +48,8 @@ function API:services(entity)
         end
     end
 
-    local error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return error, response_data
+    local has_error, response_data = self:performRequest(entity, url, "POST", service_data)
+    return has_error, response_data
 end
 
 --- POST /api/template - Evaluate a Home Assistant template
@@ -68,16 +68,16 @@ function API:template(entity)
     local trimmed_template = table.concat(lines, "\n")
     local service_data = { template = trimmed_template }
 
-    local error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return error, response_data
+    local has_error, response_data = self:performRequest(entity, url, "POST", service_data)
+    return has_error, response_data
 end
 
 --- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
 function API:states(entity)
     local url = string.format("%s/api/states/%s", self.base_url, entity.target)
 
-    local error, response_data = self:performRequest(entity, url, "GET", nil)
-    return error, response_data
+    local has_error, response_data = self:performRequest(entity, url, "GET", nil)
+    return has_error, response_data
 end
 
 --- Send the current KOReader state to Home Assistant
@@ -114,9 +114,9 @@ function API:sendHeartbeat(state, book_title, book_author)
             last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
-    local error, response = self:performRequest(nil, url, "POST", service_data)
+    local has_error, response = self:performRequest(nil, url, "POST", service_data)
 
-    if error then
+    if has_error then
         logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
     end
 end

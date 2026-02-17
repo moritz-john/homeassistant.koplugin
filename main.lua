@@ -107,27 +107,27 @@ end
 --- Handle ActivateHAEvent
 -- Flow: determine endpoint -> call API method -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local error, response_data
+    local has_error, response_data
 
     if entity.action then
-        error, response_data = API:services(entity)
+        has_error, response_data = API:services(entity)
     elseif entity.template then
-        error, response_data = API:template(entity)
+        has_error, response_data = API:template(entity)
     elseif entity.attributes then
-        error, response_data = API:states(entity)
+        has_error, response_data = API:states(entity)
     else
         self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
         return
     end
 
-    self:buildMessage(entity, error, response_data)
+    self:buildMessage(entity, has_error, response_data)
 end
 
 --- Build user-facing message based on API response
 -- all other messages related code is located in messages.lua
-function HomeAssistant:buildMessage(entity, error, response_data)
+function HomeAssistant:buildMessage(entity, has_error, response_data)
     -- on Error:
-    if error == true then
+    if has_error == true then
         Messages:buildErrorMessage(entity, response_data)
         -- on Success:
     elseif entity.action then
