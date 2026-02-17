@@ -120,7 +120,7 @@ function API:performRequest(entity, url, method, service_data)
     end
 
     -- Successful Response Handling
-    if entity.template then
+    if entity and entity.template then
         return false, raw_response
     end
 
@@ -169,7 +169,7 @@ function API:sendHeartbeat(state, book_title, book_author)
             last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
-    local error, response = self:performRequest({}, url, "POST", service_data)
+    local error, response = self:performRequest(nil, url, "POST", service_data)
 
     if error then
         logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
