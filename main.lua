@@ -107,10 +107,10 @@ end
 --- Handle ActivateHAEvent
 -- Flow: determine endpoint -> call API method -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
-    local error, response_data, extra_data
+    local error, response_data
 
     if entity.action then
-        error, response_data, extra_data = API:apiServices(entity)
+        error, response_data = API:apiServices(entity)
     elseif entity.template then
         error, response_data = API:apiTemplate(entity)
     elseif entity.attributes then
@@ -120,20 +120,18 @@ function HomeAssistant:onActivateHAEvent(entity)
         return
     end
 
-    self:buildMessage(entity, error, response_data, extra_data)
+    self:buildMessage(entity, error, response_data)
 end
 
 --- Build user-facing message based on API response
 -- all other messages related code is located in messages.lua
-function HomeAssistant:buildMessage(entity, error, response_data, extra_data)
+function HomeAssistant:buildMessage(entity, error, response_data)
     -- on Error:
     if error == true then
         Messages:buildErrorMessage(entity, response_data)
         -- on Success:
     elseif entity.template then
         Messages:buildTemplateMessage(entity, response_data)
-    elseif entity.action and entity.response_data then
-        Messages:buildResponseDataMessage(entity, response_data, extra_data)
     elseif entity.action then
         Messages:buildActionMessage(entity)
     elseif entity.attributes then

@@ -31,17 +31,10 @@ function API:trimWhitespace(str)
 end
 
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
--- Handle actions with and without action response data
 function API:apiServices(entity)
     local domain, action = entity.action:match("^([^.]+)%.(.+)$")
-    local response_parameter = entity.response_data == true and "?return_response=true" or ""
-    local url = string.format("%s/api/services/%s/%s%s",
-        self.base_url, domain, action, response_parameter)
-
-    -- If response_data is enabled, only allow string targets
-    if entity.response_data == true and type(entity.target) ~= "string" then
-        return true, "Invalid 'config.lua':\nActions with response data only allow a single target (as string)"
-    end
+    local url = string.format("%s/api/services/%s/%s",
+        self.base_url, domain, action)
 
     -- Build the JSON body for the service call
     local service_data = {}
@@ -70,19 +63,8 @@ function API:apiServices(entity)
         end
     end
 
-    -- 1) Fetch Primary Data
     local error, response_data = self:performRequest(entity, url, "POST", service_data)
-
-    -- 2) Fetch state data for weather forecasts to get units
-    local extra_data = nil
-    if not error and entity.action == "weather.get_forecasts" then
-        local state_error, state = self:apiStates(entity)
-        if not state_error then
-            extra_data = state
-        end
-    end
-
-    return error, response_data, extra_data
+    return error, response_data
 end
 
 --- POST /api/template - Evaluate a Home Assistant template
