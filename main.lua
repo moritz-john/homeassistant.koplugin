@@ -130,10 +130,10 @@ function HomeAssistant:buildMessage(entity, error, response_data)
     if error == true then
         Messages:buildErrorMessage(entity, response_data)
         -- on Success:
-    elseif entity.template then
-        Messages:buildTemplateMessage(entity, response_data)
     elseif entity.action then
         Messages:buildActionMessage(entity)
+    elseif entity.template then
+        Messages:buildTemplateMessage(entity, response_data)
     elseif entity.attributes then
         Messages:buildStateMessage(entity, response_data)
     end
