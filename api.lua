@@ -28,24 +28,20 @@ function API:services(entity)
     -- Build the JSON body for the service call
     local service_data = {}
 
-    -- Check if target is a List (Array)
-    -- #table > 0 as check for a list of items
-    local is_list = (type(entity.target) == "table" and #entity.target > 0)
-
-    -- Case 1: String or List -> Assign to 'entity_id'
-    -- e.g. "light.foo" or { "light.a", "light.b" }
-    if type(entity.target) == "string" or is_list then
-        service_data.entity_id = entity.target
-
-        -- Case 2: Map (Key-Value) -> Merge into body
-        -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
-    elseif type(entity.target) == "table" then
+    -- Handle 'target' based on type
+    -- If it's a Map (Key-Value table, length is 0), merge keys directly into the body
+    -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
+    if type(entity.target) == "table" and #entity.target == 0 then
         for k, v in pairs(entity.target) do
             service_data[k] = v
         end
+    else
+        -- If it's a String or an Array (length > 0), assign it to 'entity_id'
+        -- e.g. "light.foo" or { "light.a", "light.b" }
+        service_data.entity_id = entity.target
     end
 
-    -- Merge additional 'data' attributes if present
+    -- Merge additional 'data' attributes if present (e.g. brightness, rgb_color)
     if entity.data then
         for k, v in pairs(entity.data) do
             service_data[k] = v
@@ -92,7 +88,7 @@ function API:sendHeartbeat(state, book_title, book_author)
     end
 
     local url = string.format("%s/api/states/binary_sensor.%s", self.base_url, self.sensor_name)
-    
+
     book_title = book_title or rapidjson.null
     book_author = book_author or rapidjson.null
 
