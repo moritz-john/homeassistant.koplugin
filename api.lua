@@ -20,7 +20,7 @@ function API:init(ha_config)
 end
 
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
-function API:apiServices(entity)
+function API:services(entity)
     local domain, action = entity.action:match("^([^.]+)%.(.+)$")
     local url = string.format("%s/api/services/%s/%s",
         self.base_url, domain, action)
@@ -57,7 +57,7 @@ function API:apiServices(entity)
 end
 
 --- POST /api/template - Evaluate a Home Assistant template
-function API:apiTemplate(entity)
+function API:template(entity)
     local url = string.format("%s/api/template", self.base_url)
 
     -- Trim leading and trailing whitespace from each line of a multi-line string
@@ -77,11 +77,49 @@ function API:apiTemplate(entity)
 end
 
 --- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
-function API:apiStates(entity)
+function API:states(entity)
     local url = string.format("%s/api/states/%s", self.base_url, entity.target)
 
     local error, response_data = self:performRequest(entity, url, "GET", nil)
     return error, response_data
+end
+
+--- Send the current KOReader state to Home Assistant
+function API:sendHeartbeat(state, book_title, book_author)
+    if not NetworkMgr:isConnected() then
+        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
+        return
+    end
+
+    local url = string.format("%s/api/states/binary_sensor.%s", self.base_url, self.sensor_name)
+
+    -- Get battery information
+    local battery_level = rapidjson.null
+    local is_charging = false
+
+    if Device:hasBattery() then
+        battery_level = powerd:getCapacity()
+        is_charging = powerd:isCharging()
+    end
+
+    local service_data = {
+        state = state,
+        attributes = {
+            friendly_name = "KOReader Status",
+            icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
+            device_model = Device.model,
+            book_title = book_title,
+            book_author = book_author,
+            battery_level = battery_level,
+            is_charging = is_charging,
+            last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
+        }
+    }
+    local error, response = self:performRequest(nil, url, "POST", service_data)
+
+    if error then
+        logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
+    end
 end
 
 --- Executes a REST request to Home Assistant
@@ -136,44 +174,6 @@ function API:performRequest(entity, url, method, service_data)
 
     -- Successfully decoded JSON.
     return false, decoded
-end
-
---- Send the current KOReader state to Home Assistant
-function API:sendHeartbeat(state, book_title, book_author)
-    if not NetworkMgr:isConnected() then
-        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
-        return
-    end
-
-    local url = string.format("%s/api/states/binary_sensor.%s", self.base_url, self.sensor_name)
-
-    -- Get battery information
-    local battery_level = rapidjson.null
-    local is_charging = false
-
-    if Device:hasBattery() then
-        battery_level = powerd:getCapacity()
-        is_charging = powerd:isCharging()
-    end
-
-    local service_data = {
-        state = state,
-        attributes = {
-            friendly_name = "KOReader Status",
-            icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
-            device_model = Device.model,
-            book_title = book_title,
-            book_author = book_author,
-            battery_level = battery_level,
-            is_charging = is_charging,
-            last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }
-    }
-    local error, response = self:performRequest(nil, url, "POST", service_data)
-
-    if error then
-        logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
-    end
 end
 
 return API
