@@ -82,7 +82,7 @@ function HomeAssistant:addToMainMenu(menu_items)
                 local book_title, book_author = self:getBookInfo()
                 API:sendHeartbeat("on", book_title, book_author)
             else
-                API:sendHeartbeat("off", rapidjson.null, rapidjson.null)
+                API:sendHeartbeat("off")
             end
         end,
     })
@@ -145,7 +145,7 @@ function HomeAssistant:getBookInfo()
         local author = (self.ui.doc_props.authors and self.ui.doc_props.authors:gsub("\n", ", ")) or "Unknown Author"
         return title, author
     end
-    return rapidjson.null, rapidjson.null
+    return nil, nil
 end
 
 --- Called when document is fully loaded
@@ -158,7 +158,7 @@ end
 
 function HomeAssistant:onCloseDocument()
     if self.settings.heartbeat_enabled then
-        API:sendHeartbeat("on", rapidjson.null, rapidjson.null)
+        API:sendHeartbeat("on")
     end
 end
 
@@ -166,7 +166,7 @@ function HomeAssistant:onSuspend()
     if self.settings.heartbeat_enabled then
         -- Prevent delayed "on" heartbeat from overriding "off" state
         UIManager:unschedule(API.sendHeartbeat)
-        API:sendHeartbeat("off", rapidjson.null, rapidjson.null)
+        API:sendHeartbeat("off")
     end
 end
 

@@ -92,6 +92,9 @@ function API:sendHeartbeat(state, book_title, book_author)
     end
 
     local url = string.format("%s/api/states/binary_sensor.%s", self.base_url, self.sensor_name)
+    
+    book_title = book_title or rapidjson.null
+    book_author = book_author or rapidjson.null
 
     -- Get battery information
     local battery_level = rapidjson.null
