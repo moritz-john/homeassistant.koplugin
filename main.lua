@@ -114,27 +114,11 @@ function HomeAssistant:onActivateHAEvent(entity)
     elseif entity.attributes then
         has_error, response_data = API:states(entity)
     else
-        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        Messages:build(entity, true, "Invalid 'config.lua':\nmissing required fields")
         return
     end
 
-    self:buildMessage(entity, has_error, response_data)
-end
-
---- Build user-facing message based on API response
--- all other messages related code is located in messages.lua
-function HomeAssistant:buildMessage(entity, has_error, response_data)
-    -- on Error:
-    if has_error == true then
-        Messages:buildErrorMessage(entity, response_data)
-        -- on Success:
-    elseif entity.action then
-        Messages:buildActionMessage(entity)
-    elseif entity.template then
-        Messages:buildTemplateMessage(entity, response_data)
-    elseif entity.attributes then
-        Messages:buildStateMessage(entity, response_data)
-    end
+    Messages:build(entity, has_error, response_data)
 end
 
 function HomeAssistant:getBookInfo()
