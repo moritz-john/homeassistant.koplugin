@@ -32,22 +32,11 @@ function Messages:build(entity, has_error, response_data)
         timeout = self.TIMEOUTS.RESPONSE
     end
 
-    self:show(entity, title, content, timeout)
-end
-
---- Helper function to format and display a message
-function Messages:show(entity, title, content, timeout)
-    local messageText = string.format(_(
-            "%s\n" ..
-            "%s\n\n" ..
-            "%s"),
-        title,
-        entity.label,
-        content
-    )
-
     UIManager:show(InfoMessage:new {
-        text = messageText,
+        text    = (
+            title .. "\n" ..
+            entity.label .. "\n\n" ..
+            content),
         timeout = timeout,
     })
 end
