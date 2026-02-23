@@ -103,8 +103,7 @@ function API:services(entity)
         end
     end
 
-    local has_error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return has_error, response_data
+    return self:performRequest(entity, url, "POST", service_data)
 end
 
 --- POST /api/template - Evaluate a Home Assistant template
@@ -123,8 +122,7 @@ function API:template(entity)
     local trimmed_template = table.concat(lines, "\n")
     local service_data = { template = trimmed_template }
 
-    local has_error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return has_error, response_data
+    return self:performRequest(entity, url, "POST", service_data)
 end
 
 -- POST /api/template - Evaluate a custom-made template for entity states & attributes
@@ -170,8 +168,7 @@ function API:statesAsTemplate(entity)
 
     local service_data = { template = table.concat(lines, "\n") }
 
-    local has_error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return has_error, response_data
+    return self:performRequest(entity, url, "POST", service_data)
 end
 
 --- Send the current KOReader state to Home Assistant
