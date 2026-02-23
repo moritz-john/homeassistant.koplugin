@@ -180,28 +180,16 @@ function API:sendHeartbeat(state, book_title, book_author)
 
     local url = string.format("%s/api/states/binary_sensor.%s", self.base_url, self.sensor_name)
 
-    book_title = book_title or rapidjson.null
-    book_author = book_author or rapidjson.null
-
-    -- Get battery information
-    local battery_level = rapidjson.null
-    local is_charging = false
-
-    if Device:hasBattery() then
-        battery_level = powerd:getCapacity()
-        is_charging = powerd:isCharging()
-    end
-
     local service_data = {
         state = state,
         attributes = {
             friendly_name = "KOReader Status",
             icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
             device_model = Device.model,
-            book_title = book_title,
-            book_author = book_author,
-            battery_level = battery_level,
-            is_charging = is_charging,
+            book_title = book_title or rapidjson.null,
+            book_author = book_author or rapidjson.null,
+            battery_level = Device:hasBattery() and powerd:getCapacity() or rapidjson.null,
+            is_charging = Device:hasBattery() and powerd:isCharging() or false,
             last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
         }
     }
