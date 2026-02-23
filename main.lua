@@ -70,7 +70,7 @@ function HomeAssistant:build(entity, has_error, response_data)
     local title, content, timeout
     if has_error then
         title   = "𝙀𝙧𝙧𝙤𝙧"
-        content = "⏵ Details:\n" .. tostring(response_data)
+        content = "⏵ Details:\n" .. response_data
         timeout = self.TIMEOUTS.ERROR
     elseif entity.action then
         title   = "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯"
