@@ -5,8 +5,7 @@ local _ = require("gettext")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
-local rapidjson = require("rapidjson")
-local Messages = require("messages")
+local InfoMessage = require("ui/widget/infomessage")
 local API = require("api")
 
 -- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
@@ -18,6 +17,13 @@ end
 local HomeAssistant = WidgetContainer:extend {
     name        = "homeassistant",
     is_doc_only = false,
+}
+
+-- Define message timeouts (in seconds)
+HomeAssistant.TIMEOUTS = {
+    SIMPLE   = 5,
+    RESPONSE = nil,
+    ERROR    = nil
 }
 
 HomeAssistant.default_settings = {
@@ -40,21 +46,53 @@ function HomeAssistant:init()
     end
 end
 
---- Register dispatcher actions for each Home Assistant entity
--- This allows entities to be triggered via gestures
-function HomeAssistant:onDispatcherRegisterActions()
-    for i, entity in ipairs(ha_config.entities) do
-        local action_id = string.format("ha_entity_%d", i)
+--- Handle ActivateHAEvent
+-- Flow: determine endpoint -> call API method -> display result message to user
+function HomeAssistant:onActivateHAEvent(entity)
+    local has_error, response_data
 
-        Dispatcher:registerAction(action_id, {
-            category = "none",
-            event = "ActivateHAEvent",
-            arg = entity,
-            title = entity.label,
-            general = true,
-            separator = (i == #ha_config.entities), -- add separator after last entity
-        })
+    if entity.action then
+        has_error, response_data = API:services(entity)
+    elseif entity.template then
+        has_error, response_data = API:template(entity)
+    elseif entity.attributes then
+        has_error, response_data = API:statesAsTemplate(entity)
+    else
+        HomeAssistant:build(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        return
     end
+
+    HomeAssistant:build(entity, has_error, response_data)
+end
+
+--- Build user-facing message based on API response
+function HomeAssistant:build(entity, has_error, response_data)
+    local title, content, timeout
+    if has_error then
+        title   = "𝙀𝙧𝙧𝙤𝙧"
+        content = "⏵ Details:\n" .. tostring(response_data)
+        timeout = self.TIMEOUTS.ERROR
+    elseif entity.action then
+        title   = "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯"
+        content = "action: " .. entity.action
+        timeout = self.TIMEOUTS.SIMPLE
+    elseif entity.template then
+        title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
+        content = response_data
+        timeout = self.TIMEOUTS.RESPONSE
+    elseif entity.attributes then
+        title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
+        content = response_data
+        timeout = self.TIMEOUTS.RESPONSE
+    end
+
+    UIManager:show(InfoMessage:new {
+        text    = (
+            title .. "\n" ..
+            entity.label .. "\n\n" ..
+            content),
+        timeout = timeout,
+    })
 end
 
 --- Add Home Assistant submenu to the Tools menu
@@ -102,23 +140,21 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Handle ActivateHAEvent
--- Flow: determine endpoint -> call API method -> display result message to user
-function HomeAssistant:onActivateHAEvent(entity)
-    local has_error, response_data
+--- Register dispatcher actions for each Home Assistant entity
+-- This allows entities to be triggered via gestures
+function HomeAssistant:onDispatcherRegisterActions()
+    for i, entity in ipairs(ha_config.entities) do
+        local action_id = string.format("ha_entity_%d", i)
 
-    if entity.action then
-        has_error, response_data = API:services(entity)
-    elseif entity.template then
-        has_error, response_data = API:template(entity)
-    elseif entity.attributes then
-        has_error, response_data = API:statesAsTemplate(entity)
-    else
-        Messages:build(entity, true, "Invalid 'config.lua':\nmissing required fields")
-        return
+        Dispatcher:registerAction(action_id, {
+            category = "none",
+            event = "ActivateHAEvent",
+            arg = entity,
+            title = entity.label,
+            general = true,
+            separator = (i == #ha_config.entities), -- add separator after last entity
+        })
     end
-
-    Messages:build(entity, has_error, response_data)
 end
 
 function HomeAssistant:getBookInfo()
