@@ -112,7 +112,7 @@ function HomeAssistant:onActivateHAEvent(entity)
     elseif entity.template then
         has_error, response_data = API:template(entity)
     elseif entity.attributes then
-        has_error, response_data = API:states(entity)
+        has_error, response_data = API:statesAsTemplate(entity)
     else
         Messages:build(entity, true, "Invalid 'config.lua':\nmissing required fields")
         return

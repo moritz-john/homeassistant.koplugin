@@ -73,10 +73,49 @@ function API:template(entity)
 end
 
 --- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
-function API:states(entity)
-    local url = string.format("%s/api/states/%s", self.base_url, entity.target)
+function API:statesAsTemplate(entity)
+    local url = string.format("%s/api/template", self.base_url)
 
-    local has_error, response_data = self:performRequest(entity, url, "GET", nil)
+    local attributes = entity.attributes
+    if type(attributes) == "string" then
+        attributes = { attributes }
+        -- as a defensive measure, e.g. user forgets "" around string
+    elseif type(attributes) ~= "table" then
+        attributes = {}
+    end
+
+    if #attributes == 0 then
+        return true, "No attributes configured for this entity."
+    end
+
+    local lines = {}
+
+    -- Define target ('t') once so all expressions below can reference it via states[t], state_attr(t, ...) etc.
+    table.insert(lines, string.format("{%% set t = '%s' %%}", entity.target))
+
+    for _, attribute in ipairs(attributes) do
+        local expression
+        if attribute == "state" then
+            -- Primary state value (state-level field), formatted with unit_of_measurement if available or a localized display value
+            expression =
+            "{{ states[t].state_with_unit if state_attr(t, 'unit_of_measurement') else state_translated(t) }}"
+        elseif attribute == "last_changed" or attribute == "last_reported" or attribute == "last_updated" then
+            -- State-level datetime field, formatted as local time
+            expression = string.format("{{ states[t].%s | as_timestamp | timestamp_custom('%%d %%b %%Y, %%H:%%M') }}",
+                attribute)
+        elseif attribute == "domain" or attribute == "object_id" or attribute == "name" then
+            -- Other state-level fields
+            expression = string.format("{{ states[t].%s }}", attribute)
+        else
+            -- Attribute-level field from the entity's attributes dictionary (e.g. brightness, rgb_color)
+            expression = string.format("{{ state_attr(t, '%s') }}", attribute)
+        end
+        table.insert(lines, attribute .. ": " .. expression)
+    end
+
+    local service_data = { template = table.concat(lines, "\n") }
+
+    local has_error, response_data = self:performRequest(entity, url, "POST", service_data)
     return has_error, response_data
 end
 
@@ -157,7 +196,8 @@ function API:performRequest(entity, url, method, service_data)
     end
 
     -- Successful Response Handling
-    if entity and entity.template then
+    -- /api/template returns plain text, not JSON, so skip the decode path below.
+    if entity and (entity.template or entity.attributes) then
         return false, raw_response
     end
 
