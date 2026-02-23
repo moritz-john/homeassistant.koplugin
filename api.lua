@@ -19,6 +19,61 @@ function API:init(ha_config)
     self.sensor_name = ha_config.koreader_sensor_name or "koreader_status"
 end
 
+--- Executes a REST request to Home Assistant
+-- Only POST requests include service_data / request_body / source
+function API:performRequest(entity, url, method, service_data)
+    http.TIMEOUT = 6 -- in seconds
+
+    local request_body = service_data and rapidjson.encode(service_data) or nil
+
+    local headers = {
+        ["Authorization"] = "Bearer " .. self.token,
+        ["Content-Type"] = service_data and "application/json" or nil,
+        ["Content-Length"] = service_data and tostring(#request_body) or nil
+    }
+
+    local response_body = {}
+
+    -- result, status code, headers, status line
+    local result, code = http.request {
+        url = url,
+        method = method,
+        headers = headers,
+        source = service_data and ltn12.source.string(request_body) or nil,
+        sink = ltn12.sink.table(response_body)
+    }
+
+    local raw_response = table.concat(response_body)
+
+    -- Error Handling
+    if result == nil then
+        -- e.g. code =  "connection refused" or "timeout"
+        return true, code
+    elseif code ~= 200 and code ~= 201 then
+        -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
+        return true, code .. " | Server Response:\n" .. raw_response
+    end
+
+    -- Successful Response Handling
+    -- /api/template returns plain text, not JSON, so skip the decode path below.
+    if entity and (entity.template or entity.attributes) then
+        return false, raw_response
+    end
+
+    if raw_response == "" then
+        return false, nil -- Success with no data
+    end
+
+    -- Try to decode JSON for actions that return data
+    local success, decoded = pcall(rapidjson.decode, raw_response)
+    if not success then
+        return true, string.format("JSON decode failed:\n%s", decoded)
+    end
+
+    -- Successfully decoded JSON.
+    return false, decoded
+end
+
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
 function API:services(entity)
     local domain, action = entity.action:match("^([^.]+)%.(.+)$")
@@ -72,7 +127,7 @@ function API:template(entity)
     return has_error, response_data
 end
 
---- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
+-- POST /api/template - Evaluate a custom-made template for entity states & attributes
 function API:statesAsTemplate(entity)
     local url = string.format("%s/api/template", self.base_url)
 
@@ -158,61 +213,6 @@ function API:sendHeartbeat(state, book_title, book_author)
     if has_error then
         logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
     end
-end
-
---- Executes a REST request to Home Assistant
--- Only POST requests include service_data / request_body / source
-function API:performRequest(entity, url, method, service_data)
-    http.TIMEOUT = 6 -- in seconds
-
-    local request_body = service_data and rapidjson.encode(service_data) or nil
-
-    local headers = {
-        ["Authorization"] = "Bearer " .. self.token,
-        ["Content-Type"] = service_data and "application/json" or nil,
-        ["Content-Length"] = service_data and tostring(#request_body) or nil
-    }
-
-    local response_body = {}
-
-    -- result, status code, headers, status line
-    local result, code = http.request {
-        url = url,
-        method = method,
-        headers = headers,
-        source = service_data and ltn12.source.string(request_body) or nil,
-        sink = ltn12.sink.table(response_body)
-    }
-
-    local raw_response = table.concat(response_body)
-
-    -- Error Handling
-    if result == nil then
-        -- e.g. code =  "connection refused" or "timeout"
-        return true, code
-    elseif code ~= 200 and code ~= 201 then
-        -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
-        return true, code .. " | Server Response:\n" .. raw_response
-    end
-
-    -- Successful Response Handling
-    -- /api/template returns plain text, not JSON, so skip the decode path below.
-    if entity and (entity.template or entity.attributes) then
-        return false, raw_response
-    end
-
-    if raw_response == "" then
-        return false, nil -- Success with no data
-    end
-
-    -- Try to decode JSON for actions that return data
-    local success, decoded = pcall(rapidjson.decode, raw_response)
-    if not success then
-        return true, string.format("JSON decode failed:\n%s", decoded)
-    end
-
-    -- Successfully decoded JSON.
-    return false, decoded
 end
 
 return API
