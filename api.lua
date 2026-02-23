@@ -110,6 +110,10 @@ end
 function API:template(entity)
     local url = string.format("%s/api/template", self.base_url)
 
+    if type(entity.template) ~= "string" or entity.template == "" then
+        return true, "No or invalid template configured for this entity."
+    end
+
     -- Trim leading and trailing whitespace from each line of a multi-line string
     -- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
     -- Home Assistant without the extra indentation/whitespace from config.lua
@@ -132,7 +136,7 @@ function API:statesAsTemplate(entity)
     local attributes = entity.attributes
     if type(attributes) == "string" then
         attributes = { attributes }
-        -- as a defensive measure, e.g. user forgets "" around string
+        -- as a defensive measure
     elseif type(attributes) ~= "table" then
         attributes = {}
     end
