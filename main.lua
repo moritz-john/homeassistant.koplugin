@@ -189,10 +189,13 @@ end
 
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
-        -- Wait 4s for WiFi, then send "on"
-        -- scheduleIn(delay, function, arg1, arg2...)
+        local delay = ha_config.sensor_resume_delay
+        if type(delay) ~= "number" or delay < 0 then delay = 8 end
+
         local book_title, book_author = self:getBookInfo()
-        UIManager:scheduleIn(4, API.sendHeartbeat, API, "on", book_title, book_author)
+        -- Wait <delay> for WiFi, then send "on"
+        -- scheduleIn(delay, function, arg1, arg2...)
+        UIManager:scheduleIn(delay, API.sendHeartbeat, API, "on", book_title, book_author)
     end
 end
 
