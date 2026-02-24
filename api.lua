@@ -114,16 +114,10 @@ function API:template(entity)
         return true, "No or invalid template configured for this entity."
     end
 
-    -- Trim leading and trailing whitespace from each line of a multi-line string
-    -- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
-    -- Home Assistant without the extra indentation/whitespace from config.lua
-    local lines = {}
-    for line in entity.template:gmatch("[^\n]+") do
-        -- Trim whitespace from each line and store it
-        table.insert(lines, line:match("^%s*(.-)%s*$"))
-    end
-
-    local trimmed_template = table.concat(lines, "\n")
+    -- Strips leading/trailing string whitespace and flattens line indentation
+    -- this ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
+    -- to Home Assistant without unintentional formatting or padding.
+    local trimmed_template = entity.template:gsub("^%s+", ""):gsub("%s+$", ""):gsub("\n%s+", "\n")
     local service_data = { template = trimmed_template }
 
     return self:performRequest(entity, url, "POST", service_data)
