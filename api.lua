@@ -128,12 +128,8 @@ function API:statesAsTemplate(entity)
     local url = string.format("%s/api/template", self.base_url)
 
     local attributes = entity.attributes
-    if type(attributes) == "string" then
-        attributes = { attributes }
-        -- as a defensive measure
-    elseif type(attributes) ~= "table" then
-        attributes = {}
-    end
+    -- If it's a string, wrap it in a table. If it's nil or not a table, default to empty table.
+    attributes = (type(attributes) == "string") and { attributes } or (type(attributes) == "table" and attributes or {})
 
     if #attributes == 0 then
         return true, "No attributes configured for this entity."
