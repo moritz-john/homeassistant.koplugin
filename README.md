@@ -241,7 +241,7 @@ You can enable or disable this feature under  **Tools → Home Assistant:**
 
 > [!NOTE]
 > **Caveats:**  
-> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent on start/resume/suspend & document open/close and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 4-second delay.
+> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent on start/resume/suspend & document open/close and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 8-second delay (default) but is adjustable in `config.lua`. Not every state update action works on every device.
 
 ## Examples
 
