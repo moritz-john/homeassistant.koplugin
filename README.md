@@ -22,13 +22,11 @@
 - Action support with custom data attributes e.g.:  
   - **light.turn_on** with `brightness` and `color` 
   - **media_player.play_media** with `media_content_id` & `type`
-- Evaluate Home Assistant templates
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
-  - **sensor.temperature_outside**: `state`, `unit_of_measurement`
-- Lightweight, unobtrusive interface  
+  - **sensor.temperature_outside**: `state`, `last_updated`
+- Evaluate Home Assistant templates
 - Simple text-based configuration  
-- Success/error notifications
 
 ## Installation
 
