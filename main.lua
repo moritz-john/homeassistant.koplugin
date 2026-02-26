@@ -46,7 +46,7 @@ function HomeAssistant:init()
     end
 end
 
---- Handle ActivateHAEvent
+--- Handle ActivateHAEvent (via menu or gesture)
 -- Flow: determine endpoint -> call API method -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
     local has_error, response_data
