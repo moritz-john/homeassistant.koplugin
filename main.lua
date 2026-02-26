@@ -58,15 +58,15 @@ function HomeAssistant:onActivateHAEvent(entity)
     elseif entity.attributes then
         has_error, response_data = API:statesAsTemplate(entity)
     else
-        HomeAssistant:build(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        HomeAssistant:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
         return
     end
 
-    HomeAssistant:build(entity, has_error, response_data)
+    HomeAssistant:buildMessage(entity, has_error, response_data)
 end
 
 --- Build user-facing message based on API response
-function HomeAssistant:build(entity, has_error, response_data)
+function HomeAssistant:buildMessage(entity, has_error, response_data)
     local title, content, timeout
     if has_error then
         title   = "𝙀𝙧𝙧𝙤𝙧"
