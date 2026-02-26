@@ -5,14 +5,8 @@ local _ = require("gettext")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
-local Device = require("device")
-local powerd = Device:getPowerDevice()
-local logger = require("logger")
-local NetworkMgr = require("ui/network/manager")
-local http = require("socket.http")
-local ltn12 = require("ltn12")
-local rapidjson = require("rapidjson")
-local Messages = require("messages")
+local InfoMessage = require("ui/widget/infomessage")
+local API = require("api")
 
 -- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
 local ok, ha_config = pcall(require, "debug_config")
@@ -20,13 +14,16 @@ if not ok then
     ha_config = require("config")
 end
 
---- Define Home Assisant base_url
-local protocol = ha_config.https == true and "https" or "http"
-local base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
-
 local HomeAssistant = WidgetContainer:extend {
     name        = "homeassistant",
     is_doc_only = false,
+}
+
+-- Define message timeouts (in seconds)
+HomeAssistant.TIMEOUTS = {
+    SIMPLE   = 5,
+    RESPONSE = nil,
+    ERROR    = nil
 }
 
 HomeAssistant.default_settings = {
@@ -38,30 +35,64 @@ function HomeAssistant:init()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 
+    API:init(ha_config)
+
     self.settings = G_reader_settings:readSetting("homeassistant", self.default_settings)
 
     -- Guard to ensure sendHeartbeat is only sent once at startup
     if not HomeAssistant._initialized and self.settings.heartbeat_enabled then
         HomeAssistant._initialized = true
-        self:sendHeartbeat("on", true)
+        API:sendHeartbeat("on", self:getBookInfo())
     end
 end
 
---- Register dispatcher actions for each Home Assistant entity
--- This allows entities to be triggered via gestures
-function HomeAssistant:onDispatcherRegisterActions()
-    for i, entity in ipairs(ha_config.entities) do
-        local action_id = string.format("ha_entity_%d", i)
+--- Handle ActivateHAEvent (via menu or gesture)
+-- Flow: determine endpoint -> call API method -> display result message to user
+function HomeAssistant:onActivateHAEvent(entity)
+    local has_error, response_data
 
-        Dispatcher:registerAction(action_id, {
-            category = "none",
-            event = "ActivateHAEvent",
-            arg = entity,
-            title = entity.label,
-            general = true,
-            separator = (i == #ha_config.entities), -- add separator after last entity
-        })
+    if entity.action then
+        has_error, response_data = API:services(entity)
+    elseif entity.template then
+        has_error, response_data = API:template(entity)
+    elseif entity.attributes then
+        has_error, response_data = API:statesAsTemplate(entity)
+    else
+        HomeAssistant:build(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        return
     end
+
+    HomeAssistant:build(entity, has_error, response_data)
+end
+
+--- Build user-facing message based on API response
+function HomeAssistant:build(entity, has_error, response_data)
+    local title, content, timeout
+    if has_error then
+        title   = "𝙀𝙧𝙧𝙤𝙧"
+        content = "⏵ Details:\n" .. response_data
+        timeout = self.TIMEOUTS.ERROR
+    elseif entity.action then
+        title   = "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯"
+        content = "action: " .. entity.action
+        timeout = self.TIMEOUTS.SIMPLE
+    elseif entity.template then
+        title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
+        content = response_data
+        timeout = self.TIMEOUTS.RESPONSE
+    elseif entity.attributes then
+        title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
+        content = response_data
+        timeout = self.TIMEOUTS.RESPONSE
+    end
+
+    UIManager:show(InfoMessage:new {
+        text    = (
+            title .. "\n" ..
+            entity.label .. "\n\n" ..
+            content),
+        timeout = timeout,
+    })
 end
 
 --- Add Home Assistant submenu to the Tools menu
@@ -85,9 +116,9 @@ function HomeAssistant:addToMainMenu(menu_items)
             G_reader_settings:flush()
             -- Immediate action: update HA status based on the new toggle state
             if self.settings.heartbeat_enabled then
-                self:sendHeartbeat("on", true)
+                API:sendHeartbeat("on", self:getBookInfo())
             else
-                self:sendHeartbeat("off", false)
+                API:sendHeartbeat("off")
             end
         end,
     })
@@ -109,252 +140,62 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Handle ActivateHAEvent
--- Flow: determine endpoint -> call API method -> display result message to user
-function HomeAssistant:onActivateHAEvent(entity)
-    local error, response_data, extra_data
+--- Register dispatcher actions for each Home Assistant entity
+-- This allows entities to be triggered via gestures
+function HomeAssistant:onDispatcherRegisterActions()
+    for i, entity in ipairs(ha_config.entities) do
+        local action_id = string.format("ha_entity_%d", i)
 
-    if entity.action then
-        error, response_data, extra_data = self:apiServices(entity)
-    elseif entity.template then
-        error, response_data = self:apiTemplate(entity)
-    elseif entity.attributes then
-        error, response_data = self:apiStates(entity)
-    else
-        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
-        return
-    end
-
-    self:buildMessage(entity, error, response_data, extra_data)
-end
-
---- Trim leading and trailing whitespace from each line of a multi-line string
--- This ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
--- Home Assistant without the extra indentation/whitespace from config.lua
-function HomeAssistant:trimWhitespace(str)
-    local lines = {}
-    for line in str:gmatch("[^\n]+") do
-        table.insert(lines, line:match("^%s*(.-)%s*$"))
-    end
-    return table.concat(lines, "\n")
-end
-
---- POST /api/services/<domain>/<service> - Call a Home Assistant service
--- Handle actions with and without action response data
-function HomeAssistant:apiServices(entity)
-    local domain, action = entity.action:match("^([^.]+)%.(.+)$")
-    local response_parameter = entity.response_data == true and "?return_response=true" or ""
-    local url = string.format("%s/api/services/%s/%s%s",
-        base_url, domain, action, response_parameter)
-
-    -- If response_data is enabled, only allow string targets
-    if entity.response_data == true and type(entity.target) ~= "string" then
-        return true, "Invalid 'config.lua':\nActions with response data only allow a single target (as string)"
-    end
-
-    -- Build the JSON body for the service call
-    local service_data = {}
-
-    -- Check if target is a List (Array)
-    -- #table > 0 as check for a list of items
-    local is_list = (type(entity.target) == "table" and #entity.target > 0)
-
-    -- Case 1: String or List -> Assign to 'entity_id'
-    -- e.g. "light.foo" or { "light.a", "light.b" }
-    if type(entity.target) == "string" or is_list then
-        service_data.entity_id = entity.target
-
-        -- Case 2: Map (Key-Value) -> Merge into body
-        -- e.g. { entity_id = { "light.foo", "light.bar" } } or { area_id = "flur" }
-    elseif type(entity.target) == "table" then
-        for k, v in pairs(entity.target) do
-            service_data[k] = v
-        end
-    end
-
-    -- Merge additional 'data' attributes if present
-    if entity.data then
-        for k, v in pairs(entity.data) do
-            service_data[k] = v
-        end
-    end
-
-    -- 1) Fetch Primary Data
-    local error, response_data = self:performRequest(entity, url, "POST", service_data)
-
-    -- 2) Fetch state data for weather forecasts to get units
-    local extra_data = nil
-    if not error and entity.action == "weather.get_forecasts" then
-        local state_error, state = self:apiStates(entity)
-        if not state_error then
-            extra_data = state
-        end
-    end
-
-    return error, response_data, extra_data
-end
-
---- POST /api/template - Evaluate a Home Assistant template
-function HomeAssistant:apiTemplate(entity)
-    local url = string.format("%s/api/template", base_url)
-    local service_data = { template = self:trimWhitespace(entity.template) }
-
-    local error, response_data = self:performRequest(entity, url, "POST", service_data)
-    return error, response_data
-end
-
---- GET /api/states/<entity_id> - Fetch entity state from Home Assistant
-function HomeAssistant:apiStates(entity)
-    local url = string.format("%s/api/states/%s", base_url, entity.target)
-
-    local error, response_data = self:performRequest(entity, url, "GET", nil)
-    return error, response_data
-end
-
---- Executes a REST request to Home Assistant
--- Only POST requests include service_data / request_body / source
-function HomeAssistant:performRequest(entity, url, method, service_data)
-    http.TIMEOUT = 6 -- in seconds
-
-    local request_body = service_data and rapidjson.encode(service_data) or nil
-
-    local headers = {
-        ["Authorization"] = "Bearer " .. ha_config.token,
-        ["Content-Type"] = service_data and "application/json" or nil,
-        ["Content-Length"] = service_data and tostring(#request_body) or nil
-    }
-
-    local response_body = {}
-
-    -- result, status code, headers, status line
-    local result, code = http.request {
-        url = url,
-        method = method,
-        headers = headers,
-        source = service_data and ltn12.source.string(request_body) or nil,
-        sink = ltn12.sink.table(response_body)
-    }
-
-    local raw_response = table.concat(response_body)
-
-    -- Error Handling
-    if result == nil then
-        -- e.g. code =  "connection refused" or "timeout"
-        return true, code
-    elseif code ~= 200 and code ~= 201 then
-        -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
-        return true, code .. " | Server Response:\n" .. raw_response
-    end
-
-    -- Successful Response Handling
-    if entity.template then
-        return false, raw_response
-    end
-
-    if raw_response == "" then
-        return false, nil -- Success with no data
-    end
-
-    -- Try to decode JSON for actions that return data
-    local success, decoded = pcall(rapidjson.decode, raw_response)
-    if not success then
-        return true, string.format("JSON decode failed:\n%s", decoded)
-    end
-
-    -- Successfully decoded JSON.
-    return false, decoded
-end
-
---- Build user-facing message based on API response
--- all other messages related code is located in messages.lua
-function HomeAssistant:buildMessage(entity, error, response_data, extra_data)
-    -- on Error:
-    if error == true then
-        Messages:buildErrorMessage(entity, response_data)
-        -- on Success:
-    elseif entity.template then
-        Messages:buildTemplateMessage(entity, response_data)
-    elseif entity.action and entity.response_data then
-        Messages:buildResponseDataMessage(entity, response_data, extra_data)
-    elseif entity.action then
-        Messages:buildActionMessage(entity)
-    elseif entity.attributes then
-        Messages:buildStateMessage(entity, response_data)
+        Dispatcher:registerAction(action_id, {
+            category = "none",
+            event = "ActivateHAEvent",
+            arg = entity,
+            title = entity.label,
+            general = true,
+            separator = (i == #ha_config.entities), -- add separator after last entity
+        })
     end
 end
 
---- Send the current KOReader state to Home Assistant
-function HomeAssistant:sendHeartbeat(state, book_information)
-    if not NetworkMgr:isConnected() then
-        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
-        return
+function HomeAssistant:getBookInfo()
+    if self.ui and self.ui.doc_props then
+        local title = self.ui.doc_props.display_title or "Unknown Book"
+        local author = (self.ui.doc_props.authors and self.ui.doc_props.authors:gsub("\n", ", ")) or "Unknown Author"
+        return title, author
     end
-
-    local sensor_name = ha_config.koreader_sensor_name or "koreader_status"
-    local url = string.format("%s/api/states/binary_sensor.%s", base_url, sensor_name)
-
-    local book_title, book_author = rapidjson.null, rapidjson.null
-
-    if book_information and self.ui and self.ui.doc_props then
-        book_title = self.ui.doc_props.display_title or "Unknown Book"
-        book_author = (self.ui.doc_props.authors and self.ui.doc_props.authors:gsub("\n", ", ")) or "Unknown Author"
-    end
-
-    -- Get battery information
-    local battery_level = rapidjson.null
-    local is_charging = false
-
-    if Device:hasBattery() then
-        battery_level = powerd:getCapacity()
-        is_charging = powerd:isCharging()
-    end
-
-    local service_data = {
-        state = state,
-        attributes = {
-            friendly_name = "KOReader Status",
-            icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
-            device_model = Device.model,
-            book_title = book_title,
-            book_author = book_author,
-            battery_level = battery_level,
-            is_charging = is_charging,
-            last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }
-    }
-    local error, response = self:performRequest({}, url, "POST", service_data)
-
-    if error then
-        logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
-    end
+    return nil, nil
 end
 
 --- Called when document is fully loaded
 function HomeAssistant:onReaderReady()
     if self.settings.heartbeat_enabled then
-        self:sendHeartbeat("on", true)
+        API:sendHeartbeat("on", self:getBookInfo())
     end
 end
 
 function HomeAssistant:onCloseDocument()
     if self.settings.heartbeat_enabled then
-        self:sendHeartbeat("on", false)
+        API:sendHeartbeat("on")
     end
 end
 
 function HomeAssistant:onSuspend()
     if self.settings.heartbeat_enabled then
         -- Prevent delayed "on" heartbeat from overriding "off" state
-        UIManager:unschedule(self.sendHeartbeat)
-        self:sendHeartbeat("off", false)
+        UIManager:unschedule(API.sendHeartbeat)
+        API:sendHeartbeat("off")
     end
 end
 
 function HomeAssistant:onResume()
     if self.settings.heartbeat_enabled then
-        -- Wait 4s for WiFi, then send "on"
+        local delay = ha_config.sensor_resume_delay
+        if type(delay) ~= "number" or delay < 0 then delay = 8 end
+
+        local book_title, book_author = self:getBookInfo()
+        -- Wait <delay> for WiFi, then send "on"
         -- scheduleIn(delay, function, arg1, arg2...)
-        UIManager:scheduleIn(4, self.sendHeartbeat, self, "on", true)
+        UIManager:scheduleIn(delay, API.sendHeartbeat, API, "on", book_title, book_author)
     end
 end
 

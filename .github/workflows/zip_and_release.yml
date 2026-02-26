@@ -5,7 +5,7 @@ on:
     inputs:
       version: 
         description: "Version"
-        default: "v1.0.0"
+        default: "v26.01.01"
         required: true
 
 permissions:
@@ -21,7 +21,7 @@ jobs:
       - name: Prepare folder structure
         run: |
           mkdir -p homeassistant.koplugin
-          cp main.lua messages.lua config.lua _meta.lua homeassistant.koplugin/
+          cp main.lua api.lua config.lua _meta.lua homeassistant.koplugin/
 
       - name: Create ZIP archive
         run: zip -r homeassistant.koplugin.zip homeassistant.koplugin

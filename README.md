@@ -22,7 +22,6 @@
 - Action support with custom data attributes e.g.:  
   - **light.turn_on** with `brightness` and `color` 
   - **media_player.play_media** with `media_content_id` & `type`
-- Actions with response data (**todo.get_items** or **weather.get_forecasts**)
 - Evaluate Home Assistant templates
 - Advanced targeting: single/multiple entities, areas or labels
 - Entity state queries with customizable attributes e.g.:
@@ -85,11 +84,11 @@ return {
 
 Inside the `entities` table in `config.lua`, you can define three types of items:
 
-| Type            | Purpose                                 | Required Fields                 | Optional                |
-| :-------------- | :-------------------------------------- | :------------------------------ | :---------------------- |
-| **action**      | Control an entity (e.g., turn on light) | `label`, `action`, `target`     | `data`, `response_data` |
-| **state query** | Read a state (e.g., check temperature)  | `label`, `target`, `attributes` |                         |
-| **template**    | Evaluate a template                     | `label`, `template`             |                         |
+| Type            | Purpose                                 | Required Fields                 | Optional |
+| :-------------- | :-------------------------------------- | :------------------------------ | :------- |
+| **action**      | Control an entity (e.g., turn on light) | `label`, `action`, `target`     | `data`   |
+| **state query** | Read a state (e.g., check temperature)  | `label`, `target`, `attributes` |          |
+| **template**    | Evaluate a template                     | `label`, `template`             |          |
 
 _Think of each entry as a single Home Assistant action or state query that becomes a button or gesture in KOReader._
 
@@ -106,7 +105,7 @@ The entry in `config.lua` would look like this:
 },
 ```
 
-Of course you are not just limited to `light.turn_on` - any other action works:  
+You are not limited to `light.turn_on` - any Home Assistant action works, for example:  
 `scene.turn_on`, `automation.trigger`, `input_button.press`, `fan.toggle`, `switch.turn_off` etc...
 
 ### Adding Data to Actions | 'data = {...}'
@@ -141,7 +140,7 @@ To discover what additional data you can send with an action:
 
 ### Targeting Entities, Areas or Labels
 
-You may target multiple entities, areas, or labels – but do not mix them.
+You may target multiple entities, areas, or labels – but do not mix target types.
 
 | Target Scope          | Example `config.lua` Syntax                         |
 | :-------------------- | :-------------------------------------------------- |
@@ -167,66 +166,22 @@ You can either use one single line or indentation:
 },
 ```
 
-### Actions with Response Data | 'response_data = true'
-
-Some Home Assistant actions can return response data.  
-The plugin currently supports this for [`todo.get_items`](https://www.home-assistant.io/integrations/todo/#action-todoget_items) and [`weather.get_forecasts`](https://www.home-assistant.io/integrations/weather/#action-weatherget_forecasts).
-
-To enable this, add the `response_data` field to your configuration.  
-This feature works with a single target only (target = " ... ").
-
-#### todo.get_items Example:
-
-```lua
-{
-    type = "action_response"
-    label = "\u{EE54} Shopping List",
-    action = "todo.get_items",
-    response_data = true,
-    target = "todo.shopping_list",
-    -- data = {
-    --     status = "needs_action"
-    -- },
-},
-```
-
-<img src="assets/response_data.png" style="width:50%; height:auto;" />
-
-#### weather.get_forecasts Example:
-```lua
-{
-    label = "\u{E376} Weather Forecast",
-    action = "weather.get_forecasts",
-    target = "weather.berlin",
-    response_data = true,
-    data = {
-        type = "daily" -- or "hourly"
-    },
-},
-```
-
-<img src="assets/weather_response_data.png" style="width:50%; height:auto;" />
-
-<br>
-
-> [!NOTE]
-> This is an opinionated feature. It assumes most users are on Kindle or Kobo devices with limited screen space. 
-> For this reason, e.g.: task descriptions are intentionally not shown and weather forecast is limited to 3 items.
-
 ### Get Entity States | 'state query'
 
-To retrieve an entity's state and attributes, omit the `action` field.  
+To retrieve an entity's state and/or attributes, omit the `action` field.  
 `attributes` defines which state attributes will be displayed in the result pop-up.
 
 ```lua
 {
-    label = "Temperature Living Room",
+    label = "\u{E350} Temperature Living Room",
     target = "sensor.living_room_temperature",
-    attributes = { "state", "unit_of_measurement", "device_class" },
+    attributes = { "state", "last_updated" },
 },
 ```
 
 <img src="assets/temperature_example.png" style="width:50%; height:auto;" />
+
+<br>
 
 **Finding Available States & Attributes:**
 
@@ -244,7 +199,7 @@ Select an entity and check the **State** and **Attributes** sections.
 
 You can evaluate Home Assistant templates with `homeassistant.koplugin`.  
 [Templating](https://www.home-assistant.io/docs/configuration/templating/) can display complex & dynamic information.  
-Use them to create conditional messages, going far beyond what **state** offers.  
+Use templates to create conditional messages that go far beyond simple state queries.
 
 ```lua
 {   
@@ -286,7 +241,7 @@ You can enable or disable this feature under  **Tools → Home Assistant:**
 
 > [!NOTE]
 > **Caveats:**  
-> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent on start/resume/suspend & document open/close and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 4-second delay.
+> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent on start/resume/suspend & document open/close and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 8-second delay (default) but is adjustable in `config.lua`. Not every state update action works on every device.
 
 ## Examples
 
@@ -411,23 +366,11 @@ In theory you can take the whole data part (!) from a Home Assistant YAML action
 
 ### State Queries
 
-**Get information about the currently playing song:**
-
-```lua
-{
-    label = "What's playing?",
-    target = "media_player.jellyfin_firefox",
-    attributes = { "media_title", "media_artist", "media_duration" },
-},
-```
-
-<img src="assets/what_is_playing.png" style="width:50%; height:auto;" />
-
 **Check if the light in the shed was left on:**
 
 ```lua
 {
-    label = "Shed Light on?",
+    label = "\u{EA2B} Shed Light on?",
     target = "light.shed_ceiling_light",
     attributes = { "state", "brightness", "last_changed" },
 },
