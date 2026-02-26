@@ -48,10 +48,10 @@ function API:performRequest(entity, url, method, service_data)
     -- Error Handling
     if result == nil then
         -- e.g. code =  "connection refused" or "timeout"
-        return true, string.format(code)
+        return true, tostring(code)
     elseif code ~= 200 and code ~= 201 then
         -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
-        return true, string.format(code .. " | Server Response:\n" .. raw_response)
+        return true, tostring(code .. " | Server Response:\n" .. raw_response)
     end
 
     -- Successful Response Handling
