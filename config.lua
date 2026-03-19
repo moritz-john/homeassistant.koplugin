@@ -6,10 +6,6 @@ return {
     token =                -- Change to your own Long-Lived Access Token
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 
-    -- KOplugin settings
-    koreader_sensor_name = "koreader_status", -- Name of the binary_sensor in Home Assistant (e.g., binary_sensor.koreader_status)
-    sensor_resume_delay = 8,                  -- Delay (in seconds) until a status update is send to Home Assistant after waking up the ebook reader
-
     -- Home Assistant Entity configuration
     -- Documentation: https://github.com/moritz-john/homeassistant.koplugin
     entities = {
