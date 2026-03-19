@@ -30,6 +30,6 @@ jobs:
         uses: ncipollo/release-action@v1.20.0
         with:
           artifacts: "homeassistant.koplugin.zip"
-          name: "homeassistant.koplugin.zip"
+          name: ${{ github.event.inputs.version }} homeassistant.koplugin.zip
           tag: ${{ github.event.inputs.version }}
           token: ${{ secrets.GITHUB_TOKEN }}
