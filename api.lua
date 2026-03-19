@@ -9,14 +9,12 @@ local logger = require("logger")
 local API = {
     base_url = nil,
     token = nil,
-    sensor_name = nil,
 }
 
 function API:init(ha_config)
     local protocol = ha_config.https == true and "https" or "http"
     self.base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
     self.token = ha_config.token
-    self.sensor_name = ha_config.koreader_sensor_name or "koreader_status"
 end
 
 --- Executes a REST request to Home Assistant
@@ -163,35 +161,6 @@ function API:statesAsTemplate(entity)
     local service_data = { template = table.concat(lines, "\n") }
 
     return self:performRequest(entity, url, "POST", service_data)
-end
-
---- Send the current KOReader state to Home Assistant
-function API:sendHeartbeat(state, book_title, book_author)
-    if not NetworkMgr:isConnected() then
-        logger.info("[HomeAssistant]: no network connection, skipping heartbeat")
-        return
-    end
-
-    local url = string.format("%s/api/states/binary_sensor.%s", self.base_url, self.sensor_name)
-
-    local service_data = {
-        state = state,
-        attributes = {
-            friendly_name = "KOReader Status",
-            icon = state == "on" and "mdi:book-variant" or "mdi:book-off",
-            device_model = Device.model,
-            book_title = book_title or rapidjson.null,
-            book_author = book_author or rapidjson.null,
-            battery_level = Device:hasBattery() and powerd:getCapacity() or rapidjson.null,
-            is_charging = Device:hasBattery() and powerd:isCharging() or false,
-            last_seen = os.date("!%Y-%m-%dT%H:%M:%SZ")
-        }
-    }
-    local has_error, response = self:performRequest(nil, url, "POST", service_data)
-
-    if has_error then
-        logger.info("[HomeAssistant]: sending heartbeat failed - Error:", response)
-    end
 end
 
 return API

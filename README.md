@@ -11,11 +11,6 @@
   <i>homeassistant.koplugin: a template query [left] & QuickMenu gesture [right]</i>
 </p>
 
-<p align="center">
-<img src="assets/ha_koreader_sensor.png" />
-  <i>KOReader status sensor in Home Assistant</i>
-</p>
-
 ## Features
 
 - Control any number of Home Assistant entities from KOReader 
@@ -221,25 +216,6 @@ Go to your **Home Assistant instance → Developer Tools → Template**
 Use the [template editor](https://my.home-assistant.io/redirect/developer_template/) to test your code before pasting it into the `template = [[...]]` section of your config.
 
 <img src="assets/template_editor.png" style="width:100%; height:auto;" />
-
-## KOReader Home Assistant status sensor
-
-The plugin can send KOReader's current state (on/off) to a Home Assistant binary sensor. This sensor can be used to trigger automations based on your reading activity.  
-By default, the sensor is created as `binary_sensor.koreader_status`. You can customize the sensor name in your `config.lua`.
-
-<img src="assets/ha_koreader_sensor.png" style="width:60%; height:auto;" />
-
-The sensor includes the following attributes: `device_model`, `book_title`, `book_author` and `last_seen`.
-
-You can enable or disable this feature under  **Tools → Home Assistant:** 
-
-<img src="assets/heartbeat_toggle.png" style="width:60%; height:auto;" />
-
-<br>
-
-> [!NOTE]
-> **Caveats:**  
-> This feature assumes `homeassistant.koplugin` is configured correctly and that KOReader has Wi-Fi connectivity. State updates are sent on start/resume/suspend & document open/close and will fail silently if Home Assistant or Wi-Fi is unavailable. The resume state is sent with a 8-second delay (default) but is adjustable in `config.lua`. Not every state update action works on every device.
 
 ## Examples
 
