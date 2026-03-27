@@ -23,6 +23,8 @@
 - Evaluate Home Assistant templates
 - Simple text-based configuration  
   
+<br>
+
 > **If you’re looking for a Home Assistant KOReader status sensor that shows your e-book reader’s state, including the title, author, and battery level, check out [heartbeat.koplugin](https://github.com/moritz-john/heartbeat.koplugin)**
 
 ## Installation
