@@ -6,6 +6,7 @@ local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
 local InfoMessage = require("ui/widget/infomessage")
+local SpinWidget = require("ui/widget/spinwidget")
 local API = require("api")
 
 -- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
@@ -35,8 +36,19 @@ function HomeAssistant:init()
 end
 
 --- Handle ActivateHAEvent (via menu or gesture)
--- Flow: determine endpoint -> call API method -> display result message to user
+-- If the entity has an 'input' field, show an interactive widget first;
+-- otherwise execute the action directly.
 function HomeAssistant:onActivateHAEvent(entity)
+    if entity.input and entity.action then
+        self:showInputWidget(entity)
+        return
+    end
+    self:executeAction(entity)
+end
+
+--- Execute the actual HA API call
+-- Flow: determine endpoint -> call API method -> display result message to user
+function HomeAssistant:executeAction(entity)
     local has_error, response_data
 
     if entity.action then
@@ -51,6 +63,90 @@ function HomeAssistant:onActivateHAEvent(entity)
     end
 
     self:buildMessage(entity, has_error, response_data)
+end
+
+--- Show an interactive input widget before executing an action
+-- Routes to the appropriate widget based on input.type.
+function HomeAssistant:showInputWidget(entity)
+    local input = entity.input
+    local input_type = input.type or "spin"
+
+    if input_type == "spin" then
+        self:showSpinInput(entity)
+    else
+        self:buildMessage(entity, true,
+            string.format("Unsupported input type: '%s'", input_type))
+    end
+end
+
+--- Show a SpinWidget for numeric input, then execute the action with the chosen value
+function HomeAssistant:showSpinInput(entity)
+    local input = entity.input
+    local initial_value = input.default or input.min or 0
+    local fetch_info = nil
+
+    -- Optionally fetch the current attribute value from Home Assistant
+    if input.fetch_current and entity.target and type(entity.target) == "string" then
+        local current, err = self:fetchCurrentAttributeValue(entity, input)
+        if current ~= nil then
+            initial_value = current
+        elseif err then
+            fetch_info = "Could not fetch current value: " .. err
+        end
+    end
+
+    UIManager:show(SpinWidget:new{
+        title_text = input.title or entity.label,
+        info_text = fetch_info,
+        value = initial_value,
+        value_min = input.min or 0,
+        value_max = input.max or 100,
+        value_step = input.step or 1,
+        value_hold_step = input.hold_step or 10,
+        unit = input.unit or "",
+        default_value = input.default,
+        ok_always_enabled = true,
+        callback = function(spin)
+            local modified = self:buildModifiedEntity(entity, spin.value)
+            self:executeAction(modified)
+        end,
+    })
+end
+
+--- Create a shallow copy of entity with the user-chosen value merged into data
+function HomeAssistant:buildModifiedEntity(entity, value)
+    local modified = {}
+    for k, v in pairs(entity) do modified[k] = v end
+    modified.data = {}
+    if entity.data then
+        for k, v in pairs(entity.data) do modified.data[k] = v end
+    end
+    modified.data[entity.input.field] = value
+    modified.input = nil -- prevent re-triggering the input widget
+    return modified
+end
+
+--- Fetch the current value of an entity attribute from Home Assistant
+-- Returns (value, nil) on success, or (nil, reason_string) on failure
+function HomeAssistant:fetchCurrentAttributeValue(entity, input)
+    local attr_name = input.fetch_attribute or input.field
+    local value, entity_state = API:getAttributeValue(entity.target, attr_name)
+    if type(value) ~= "number" then
+        -- If the entity is off, the attribute is likely unavailable;
+        -- treat it as "at minimum" (e.g., brightness 0 when light is off)
+        if entity_state == "off" then
+            return input.min or 0, nil
+        end
+        return nil, string.format("attribute '%s' is %s (%s)",
+            attr_name, tostring(value), type(value))
+    end
+
+    -- Handle brightness (0-255) → brightness_pct (0-100) conversion
+    if attr_name == "brightness" and input.field == "brightness_pct" then
+        value = math.floor(value / 255 * 100 + 0.5)
+    end
+
+    return math.max(input.min or 0, math.min(input.max or 100, value)), nil
 end
 
 --- Build user-facing message based on API response

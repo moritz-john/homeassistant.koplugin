@@ -43,6 +43,25 @@ return {
             action = "media_player.media_play_pause",
             target = "media_player.living_room_sonos",
         },
+        -- Interactive Actions (with user input):
+        {
+            label = "Reading Lamp → set brightness",
+            action = "light.turn_on",
+            target = "light.reading_lamp",
+            input = {
+                type = "spin",             -- widget type (default: "spin")
+                field = "brightness_pct",  -- data key sent to Home Assistant
+                title = "Brightness",
+                min = 0,
+                max = 100,
+                step = 5,
+                hold_step = 10,
+                unit = "%",
+                default = 50,
+                fetch_current = true,       -- query current value before showing widget
+                fetch_attribute = "brightness", -- HA attribute to read (0-255 scale, auto-converted)
+            },
+        },
         -- Get Entity States:
         {
             label = "Outside Temperature",

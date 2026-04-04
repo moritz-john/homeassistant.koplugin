@@ -163,4 +163,16 @@ function API:statesAsTemplate(entity)
     return self:performRequest(entity, url, "POST", service_data)
 end
 
+--- GET /api/states/<entity_id> - Fetch a single attribute value from an entity's state
+-- Returns (attribute_value, entity_state_string) on success, or (nil, nil) on failure
+function API:getAttributeValue(entity_id, attribute_name)
+    local url = string.format("%s/api/states/%s", self.base_url, entity_id)
+    local has_error, response_data = self:performRequest(nil, url, "GET", nil)
+    if has_error then return nil, nil end
+    if type(response_data) == "table" and response_data.attributes then
+        return response_data.attributes[attribute_name], response_data.state
+    end
+    return nil, nil
+end
+
 return API
