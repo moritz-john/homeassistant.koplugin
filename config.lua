@@ -43,6 +43,57 @@ return {
             action = "media_player.media_play_pause",
             target = "media_player.living_room_sonos",
         },
+        -- Interactive Actions (with user input):
+        -- Spin: numeric value with a slider (e.g., brightness)
+        {
+            label = "Reading Lamp → set brightness",
+            action = "light.turn_on",
+            target = "light.reading_lamp",
+            input = {
+                type = "spin",             -- widget type (default: "spin")
+                field = "brightness_pct",  -- data key sent to Home Assistant
+                title = "Brightness",
+                min = 0,
+                max = 100,
+                step = 5,
+                hold_step = 10,
+                unit = "%",
+                default = 50,
+                fetch_current = true,       -- query current value before showing widget
+                fetch_attribute = "brightness", -- HA attribute to read (0-255 scale, auto-converted)
+            },
+        },
+        -- Choice: select from a list of predefined options (e.g., light effect)
+        {
+            label = "Reading Lamp → set effect",
+            action = "light.turn_on",
+            target = "light.reading_lamp",
+            input = {
+                type = "choice",
+                field = "effect",
+                title = "Effect",
+                values = { "None", "Candle", "Fireplace", "Party", "Rainbow" },
+                default = "None",
+                fetch_current = true,       -- pre-select the current effect
+                fetch_attribute = "effect",
+            },
+        },
+        -- Text: free-form text input (e.g., a URL or search query)
+        {
+            label = "Play Media URL",
+            action = "media_player.play_media",
+            target = "media_player.living_room_sonos",
+            data = {
+                media_content_type = "music",
+            },
+            input = {
+                type = "text",
+                field = "media_content_id",
+                title = "Media URL",
+                hint = "Enter a URL...",
+                default = "",
+            },
+        },
         -- Get Entity States:
         {
             label = "Outside Temperature",
