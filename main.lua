@@ -7,6 +7,8 @@ local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
 local InfoMessage = require("ui/widget/infomessage")
 local SpinWidget = require("ui/widget/spinwidget")
+local InputDialog = require("ui/widget/inputdialog")
+local RadioButtonWidget = require("ui/widget/radiobuttonwidget")
 local API = require("api")
 
 -- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
@@ -73,6 +75,10 @@ function HomeAssistant:showInputWidget(entity)
 
     if input_type == "spin" then
         self:showSpinInput(entity)
+    elseif input_type == "choice" then
+        self:showChoiceInput(entity)
+    elseif input_type == "text" then
+        self:showTextInput(entity)
     else
         self:buildMessage(entity, true,
             string.format("Unsupported input type: '%s'", input_type))
@@ -111,6 +117,92 @@ function HomeAssistant:showSpinInput(entity)
             self:executeAction(modified)
         end,
     })
+end
+
+--- Show a RadioButtonWidget for selecting from predefined choices
+-- Config: input = { type = "choice", field = "color_name", title = "Color",
+--                   values = { "red", "blue", "warm_white" }, default = "warm_white" }
+function HomeAssistant:showChoiceInput(entity)
+    local input = entity.input
+
+    if not input.values or #input.values == 0 then
+        self:buildMessage(entity, true, "No 'values' configured for choice input")
+        return
+    end
+
+    -- Optionally fetch the current value from Home Assistant
+    local current_value = input.default
+    if input.fetch_current and entity.target and type(entity.target) == "string" then
+        local fetched = API:getAttributeValue(entity.target, input.fetch_attribute or input.field)
+        if fetched ~= nil then
+            current_value = tostring(fetched)
+        end
+    end
+
+    -- Build radio button rows from the values list
+    local radio_buttons = {}
+    for _, val in ipairs(input.values) do
+        local str_val = tostring(val)
+        table.insert(radio_buttons, {
+            { text = str_val, provider = val, checked = (str_val == tostring(current_value)) },
+        })
+    end
+
+    UIManager:show(RadioButtonWidget:new{
+        title_text = input.title or entity.label,
+        radio_buttons = radio_buttons,
+        callback = function(radio)
+            local modified = self:buildModifiedEntity(entity, radio.provider)
+            self:executeAction(modified)
+        end,
+    })
+end
+
+--- Show an InputDialog for free-form text input
+-- Config: input = { type = "text", field = "media_content_id", title = "URL",
+--                   default = "", hint = "Enter a URL..." }
+function HomeAssistant:showTextInput(entity)
+    local input = entity.input
+
+    -- Optionally fetch the current value from Home Assistant
+    local current_value = input.default or ""
+    if input.fetch_current and entity.target and type(entity.target) == "string" then
+        local fetched = API:getAttributeValue(entity.target, input.fetch_attribute or input.field)
+        if fetched ~= nil then
+            current_value = tostring(fetched)
+        end
+    end
+
+    local input_dialog
+    input_dialog = InputDialog:new{
+        title = input.title or entity.label,
+        input = current_value,
+        input_hint = input.hint or "",
+        input_type = input.input_type, -- nil for text, "number" for numeric
+        buttons = {
+            {
+                {
+                    text = _("Cancel"),
+                    id = "close",
+                    callback = function()
+                        UIManager:close(input_dialog)
+                    end,
+                },
+                {
+                    text = _("OK"),
+                    is_enter_default = true,
+                    callback = function()
+                        local value = input_dialog:getInputText()
+                        UIManager:close(input_dialog)
+                        local modified = self:buildModifiedEntity(entity, value)
+                        self:executeAction(modified)
+                    end,
+                },
+            },
+        },
+    }
+    UIManager:show(input_dialog)
+    input_dialog:onShowKeyboard()
 end
 
 --- Create a shallow copy of entity with the user-chosen value merged into data
