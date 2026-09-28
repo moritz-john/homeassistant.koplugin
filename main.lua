@@ -5,6 +5,7 @@ local _ = require("gettext")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
+local NetworkMgr = require("ui/network/manager")
 local InfoMessage = require("ui/widget/infomessage")
 local API = require("api")
 
@@ -37,6 +38,14 @@ end
 --- Handle ActivateHAEvent (via menu or gesture)
 -- Flow: determine endpoint -> call API method -> display result message to user
 function HomeAssistant:onActivateHAEvent(entity)
+    if entity.action or entity.template or entity.attributes then
+        if NetworkMgr:willRerunWhenOnline(function()
+            self:onActivateHAEvent(entity)
+        end) then
+            return
+        end
+    end
+
     local has_error, response_data
 
     if entity.action then
