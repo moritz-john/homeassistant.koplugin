@@ -36,27 +36,26 @@ function HomeAssistant:init()
 end
 
 --- Handle ActivateHAEvent (via menu or gesture)
--- Flow: determine endpoint -> call API method -> display result message to user
+-- Flow: validate entity -> wait for network (re-runs if Wi-Fi was off) -> call matching API method -> build/display result message
 function HomeAssistant:onActivateHAEvent(entity)
-    if entity.action or entity.template or entity.attributes then
-        if NetworkMgr:willRerunWhenOnline(function()
+    if not (entity.action or entity.template or entity.attributes) then
+        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        return
+    end
+
+    if NetworkMgr:willRerunWhenOnline(function()
             self:onActivateHAEvent(entity)
         end) then
-            return
-        end
+        return
     end
 
     local has_error, response_data
-
     if entity.action then
         has_error, response_data = API:services(entity)
     elseif entity.template then
         has_error, response_data = API:template(entity)
     elseif entity.attributes then
         has_error, response_data = API:statesAsTemplate(entity)
-    else
-        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
-        return
     end
 
     self:buildMessage(entity, has_error, response_data)
