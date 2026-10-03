@@ -32,9 +32,10 @@
 ### Step 1: Download the Plugin
 [Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`:  
 
-### Step 2: Edit `config.lua`
+### Step 2: Edit `example_config.lua` / `config.lua`
+Rename `example_config.lua` to `config.lua`.
 
-Follow the [Configuration](#configuration) section.
+Then follow the [Configuration](#configuration) section.
 
 Tip: You can install and configure the plugin in KOReader for macOS or Linux first. This makes it easier to fix configuration errors before copying the files to your e-reader.
 

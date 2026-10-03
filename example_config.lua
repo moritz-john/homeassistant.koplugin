@@ -1,3 +1,6 @@
+-- Rename this file to "config.lua" and customize it with your Home Assistant URL, token and entities.
+-- Restart KOReader afterwards. Full documentation: https://github.com/moritz-john/homeassistant.koplugin
+
 return {
     -- Home Assistant connection settings
     host = "192.168.1.10", -- Change to your Home Assistant IP Address or Hostname

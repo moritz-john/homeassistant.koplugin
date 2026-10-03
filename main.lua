@@ -9,10 +9,10 @@ local NetworkMgr = require("ui/network/manager")
 local InfoMessage = require("ui/widget/infomessage")
 local API = require("api")
 
--- Use debug_config.lua if it exists (for development); otherwise config.lua (for end-user)
-local ok, ha_config = pcall(require, "debug_config")
-if not ok then
-    ha_config = require("config")
+-- Check if config.lua exists; if not, fall back to an empty config so the plugin still loads
+local has_config, ha_config = pcall(require, "config")
+if not has_config then
+    ha_config = { entities = {} }
 end
 
 local HomeAssistant = WidgetContainer:extend {
@@ -94,6 +94,22 @@ end
 --- Add Home Assistant submenu to the Tools menu
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
+
+    -- If config.lua doesn't exist, show "Getting Started" menu entry
+    if not has_config then
+        table.insert(sub_items, {
+            text = _(" \u{EB62} Getting Started (tap for information)"),
+            callback = function()
+                UIManager:show(InfoMessage:new {
+                    text = _(
+                        "From your computer:\n" ..
+                        "\u{EAA5} Rename 'example_config.lua' to 'config.lua' in the 'homeassistant.koplugin' folder.\n" ..
+                        "\u{EAA8} Edit 'config.lua' with your Home Assistant URL, token and entities, then restart KOReader.\n\n" ..
+                        "\u{E885} Visit https://github.com/moritz-john/homeassistant.koplugin for the full documentation."),
+                })
+            end,
+        })
+    end
 
     -- Add a menu item for each configured Home Assistant entity
     for _, entity in ipairs(ha_config.entities) do
