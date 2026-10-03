@@ -21,7 +21,7 @@ jobs:
       - name: Prepare folder structure
         run: |
           mkdir -p homeassistant.koplugin
-          cp main.lua api.lua config.lua _meta.lua homeassistant.koplugin/
+          cp main.lua api.lua example_config.lua _meta.lua homeassistant.koplugin/
 
       - name: Create ZIP archive
         run: zip -r homeassistant.koplugin.zip homeassistant.koplugin
