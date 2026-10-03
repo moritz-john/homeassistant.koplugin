@@ -1,10 +1,6 @@
-local Device = require("device")
-local powerd = Device:getPowerDevice()
-local NetworkMgr = require("ui/network/manager")
 local http = require("socket.http")
 local ltn12 = require("ltn12")
 local rapidjson = require("rapidjson")
-local logger = require("logger")
 
 local API = {
     base_url = nil,
