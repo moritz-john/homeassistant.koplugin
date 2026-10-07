@@ -1,5 +1,6 @@
 local http = require("socket.http")
 local ltn12 = require("ltn12")
+local socketutil = require("socketutil")
 local rapidjson = require("rapidjson")
 
 local API = {
@@ -16,8 +17,6 @@ end
 --- Executes a REST request to Home Assistant
 -- Only POST requests include service_data / request_body / source
 function API:performRequest(entity, url, method, service_data)
-    http.TIMEOUT = 6 -- in seconds
-
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
     local headers = {
@@ -28,6 +27,9 @@ function API:performRequest(entity, url, method, service_data)
 
     local response_body = {}
 
+    -- default values from https://github.com/koreader/koreader/blob/22ea2320c56dd5c9b050f2b42423decc0be651e9/frontend/socketutil.lua#L52
+    socketutil:set_timeout(5, 15)
+
     -- result, status code, headers, status line
     local result, code = http.request {
         url = url,
@@ -36,6 +38,8 @@ function API:performRequest(entity, url, method, service_data)
         source = service_data and ltn12.source.string(request_body) or nil,
         sink = ltn12.sink.table(response_body)
     }
+
+    socketutil:reset_timeout()
 
     local raw_response = table.concat(response_body)
 
