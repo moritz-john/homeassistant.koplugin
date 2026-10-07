@@ -39,7 +39,7 @@ end
 -- Flow: validate entity -> wait for network (re-runs if Wi-Fi was off) -> call matching API method -> build/display result message
 function HomeAssistant:onActivateHAEvent(entity)
     if not (entity.action or entity.template or entity.attributes) then
-        self:buildMessage(entity, true, "Invalid 'config.lua':\nmissing required fields")
+        self:buildMessage(entity, nil, "Invalid 'config.lua':\nmissing required fields")
         return
     end
 
@@ -49,24 +49,26 @@ function HomeAssistant:onActivateHAEvent(entity)
         return
     end
 
-    local has_error, response_data
+    local result, err
+
     if entity.action then
-        has_error, response_data = API:services(entity)
+        result, err = API:services(entity)
     elseif entity.template then
-        has_error, response_data = API:template(entity)
+        result, err = API:template(entity)
     elseif entity.attributes then
-        has_error, response_data = API:statesAsTemplate(entity)
+        result, err = API:statesAsTemplate(entity)
     end
 
-    self:buildMessage(entity, has_error, response_data)
+    self:buildMessage(entity, result, err)
 end
 
---- Build user-facing message based on API response
-function HomeAssistant:buildMessage(entity, has_error, response_data)
+--- Build user-facing message based on API result
+function HomeAssistant:buildMessage(entity, result, err)
     local title, content, timeout
-    if has_error then
+
+    if err then
         title   = "𝙀𝙧𝙧𝙤𝙧"
-        content = "⏵ Details:\n" .. response_data
+        content = "⏵ Details:\n" .. err
         timeout = self.TIMEOUTS.ERROR
     elseif entity.action then
         title   = "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯"
@@ -74,16 +76,16 @@ function HomeAssistant:buildMessage(entity, has_error, response_data)
         timeout = self.TIMEOUTS.SIMPLE
     elseif entity.template then
         title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
-        content = response_data
+        content = result
         timeout = self.TIMEOUTS.RESPONSE
     elseif entity.attributes then
         title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
-        content = response_data
+        content = result
         timeout = self.TIMEOUTS.RESPONSE
     end
 
     UIManager:show(InfoMessage:new {
-        text    = (
+        text = (
             title .. "\n" ..
             entity.label .. "\n\n" ..
             content),

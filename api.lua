@@ -42,30 +42,30 @@ function API:performRequest(entity, url, method, service_data)
     -- Error Handling
     if result == nil then
         -- e.g. code =  "connection refused" or "timeout"
-        return true, tostring(code)
+        return nil, tostring(code)
     elseif code ~= 200 and code ~= 201 then
         -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
-        return true, tostring(code .. " | Server Response:\n" .. raw_response)
+        return nil, tostring(code .. " | Server Response:\n" .. raw_response)
     end
 
     -- Successful Response Handling
     -- /api/template returns plain text, not JSON, so skip the decode path below.
     if entity and (entity.template or entity.attributes) then
-        return false, raw_response
+        return raw_response
     end
 
     if raw_response == "" then
-        return false, nil -- Success with no data
+        return true -- Success with no data
     end
 
     -- Try to decode JSON for actions that return data
     local success, decoded = pcall(rapidjson.decode, raw_response)
     if not success then
-        return true, string.format("JSON decode failed:\n%s", decoded)
+        return nil, string.format("JSON decode failed:\n%s", decoded)
     end
 
     -- Successfully decoded JSON.
-    return false, decoded
+    return decoded
 end
 
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
@@ -105,7 +105,7 @@ function API:template(entity)
     local url = string.format("%s/api/template", self.base_url)
 
     if type(entity.template) ~= "string" or entity.template == "" then
-        return true, "No or invalid template configured for this entity."
+        return nil, "No or invalid template configured for this entity."
     end
 
     -- Strips leading/trailing string whitespace and flattens line indentation
@@ -126,7 +126,7 @@ function API:statesAsTemplate(entity)
     attributes = (type(attributes) == "string") and { attributes } or (type(attributes) == "table" and attributes or {})
 
     if #attributes == 0 then
-        return true, "No attributes configured for this entity."
+        return nil, "No attributes configured for this entity."
     end
 
     local lines = {}
