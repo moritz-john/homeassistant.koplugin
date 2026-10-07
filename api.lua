@@ -117,7 +117,27 @@ function API:template(entity)
     return self:performRequest(entity, url, "POST", service_data)
 end
 
--- POST /api/template - Evaluate a custom-made template for entity states & attributes
+--- POST /api/template - Evaluate a custom-made template for entity states & attributes
+-- Builds a template from the 'attributes' list in the config: one "name: value" line each.
+-- Unlike GET /api/states, state and timestamps arrive already formatted (units, translations, local time).
+--
+-- Example entity:
+--   {
+--       label = "Temperature Living Room",
+--       target = "sensor.living_room_temperature",
+--       attributes = { "state", "last_changed", "device_class" },
+--   }
+--
+-- Generated template:
+--   {% set t = 'sensor.living_room_temperature' %}
+--   state: {{ states[t].state_with_unit if state_attr(t, 'unit_of_measurement') else state_translated(t) }}
+--   last_changed: {{ states[t].last_changed | as_timestamp | timestamp_custom('%d %b %Y, %H:%M') }}
+--   device_class: {{ state_attr(t, 'device_class') }}
+--
+-- Rendered response (e.g.):
+--   state: 21.5 °C
+--   last_changed: 07 Oct 2026, 14:32
+--   device_class: temperature
 function API:statesAsTemplate(entity)
     local url = string.format("%s/api/template", self.base_url)
 
