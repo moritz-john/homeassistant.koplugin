@@ -15,6 +15,11 @@ if not has_config then
     ha_config = { entities = {} }
 end
 
+-- Entities without a label would crash the menu, so give them a visible placeholder
+for i, entity in ipairs(ha_config.entities) do
+    entity.label = entity.label or string.format("Entity %d (missing label in config.lua)", i)
+end
+
 local HomeAssistant = WidgetContainer:extend {
     name        = "homeassistant",
     is_doc_only = false,
