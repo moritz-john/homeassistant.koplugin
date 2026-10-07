@@ -44,7 +44,7 @@ end
 -- Flow: validate entity -> wait for network (re-runs if Wi-Fi was off) -> call matching API method -> build/display result message
 function HomeAssistant:onActivateHAEvent(entity)
     if not (entity.action or entity.template or entity.attributes) then
-        self:buildMessage(entity, nil, "Invalid 'config.lua':\nmissing required fields")
+        self:buildMessage(entity, nil, "Invalid 'config.lua': missing required fields")
         return
     end
 
