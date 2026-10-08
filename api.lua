@@ -75,7 +75,8 @@ end
 
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
 function API:services(entity)
-    local domain, action = entity.action:match("^([^.]+)%.(.+)$")
+    local domain, action = tostring(entity.action):match("^([^.]+)%.(.+)$")
+
     local url = string.format("%s/api/services/%s/%s",
         self.base_url, domain, action)
 
