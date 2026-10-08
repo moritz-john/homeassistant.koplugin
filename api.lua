@@ -64,9 +64,9 @@ function API:performRequest(entity, url, method, service_data)
     end
 
     -- Try to decode JSON for actions that return data
-    local success, decoded = pcall(rapidjson.decode, raw_response)
-    if not success then
-        return nil, string.format("JSON decode failed:\n%s", decoded)
+    local decoded, err = rapidjson.decode(raw_response)
+    if decoded == nil then
+        return nil, string.format("JSON decode failed:\n%s", tostring(err))
     end
 
     -- Successfully decoded JSON.
