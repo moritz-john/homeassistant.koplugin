@@ -77,6 +77,10 @@ end
 function API:services(entity)
     local domain, action = tostring(entity.action):match("^([^.]+)%.(.+)$")
 
+    if not domain then
+        return nil, "Invalid 'config.lua': action must be in the format domain.service (e.g. light.turn_on)"
+    end
+
     local url = string.format("%s/api/services/%s/%s",
         self.base_url, domain, action)
 
