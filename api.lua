@@ -30,13 +30,14 @@ function API:performRequest(entity, url, method, service_data)
     -- default values from https://github.com/koreader/koreader/blob/22ea2320c56dd5c9b050f2b42423decc0be651e9/frontend/socketutil.lua#L52
     socketutil:set_timeout(5, 15)
 
-    -- result, status code, headers, status line
+    -- Returns: result (1 or nil), code (HTTP status or error text), headers, status line
+    -- Only result and code are used here
     local result, code = http.request {
         url = url,
         method = method,
         headers = headers,
         source = service_data and ltn12.source.string(request_body) or nil,
-        sink = ltn12.sink.table(response_body)
+        sink = socketutil.table_sink(response_body)
     }
 
     socketutil:reset_timeout()
