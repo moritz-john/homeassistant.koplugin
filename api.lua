@@ -8,10 +8,15 @@ local API = {
     token = nil,
 }
 
+-- Defaults for missing config values, so a missing host or token shows up as a request error instead of a crash.
+-- port is optional: without it the URL has no port, so http/https use their defaults (80/443)
 function API:init(ha_config)
     local protocol = ha_config.https == true and "https" or "http"
-    self.base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
-    self.token = ha_config.token
+    local host = ha_config.host or ""
+    local port = ha_config.port and (":" .. tostring(ha_config.port)) or ""
+
+    self.base_url = protocol .. "://" .. host .. port
+    self.token = ha_config.token or ""
 end
 
 --- Executes a REST request to Home Assistant
