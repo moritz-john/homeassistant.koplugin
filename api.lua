@@ -115,7 +115,7 @@ function API:template(entity)
     local url = string.format("%s/api/template", self.base_url)
 
     if type(entity.template) ~= "string" or entity.template == "" then
-        return nil, "No or invalid template configured for this entity."
+        return nil, "Invalid 'config.lua': template must be a non-empty string"
     end
 
     -- Strips leading/trailing string whitespace and flattens line indentation
@@ -156,7 +156,7 @@ function API:statesAsTemplate(entity)
     attributes = (type(attributes) == "string") and { attributes } or (type(attributes) == "table" and attributes or {})
 
     if #attributes == 0 then
-        return nil, "No attributes configured for this entity."
+        return nil, "Invalid 'config.lua': attributes must be a string (e.g. \"state\") or a non-empty list"
     end
 
     local lines = {}
