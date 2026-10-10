@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6.0.0
+        uses: actions/checkout@v7.0.1
 
       - name: Prepare folder structure
         run: |
@@ -27,7 +27,7 @@ jobs:
         run: zip -r homeassistant.koplugin.zip homeassistant.koplugin
 
       - name: Upload Release
-        uses: ncipollo/release-action@v1.20.0
+        uses: ncipollo/release-action@v1.21.0
         with:
           artifacts: "homeassistant.koplugin.zip"
           name: ${{ github.event.inputs.version }} homeassistant.koplugin.zip
