@@ -1,5 +1,6 @@
 local http = require("socket.http")
 local ltn12 = require("ltn12")
+local socketutil = require("socketutil")
 local rapidjson = require("rapidjson")
 
 local API = {
@@ -7,17 +8,20 @@ local API = {
     token = nil,
 }
 
+-- Defaults for missing config values, so a missing host or token shows up as a request error instead of a crash.
+-- port is optional: without it the URL has no port, so http/https use their defaults (80/443)
 function API:init(ha_config)
     local protocol = ha_config.https == true and "https" or "http"
-    self.base_url = string.format("%s://%s:%d", protocol, ha_config.host, ha_config.port)
-    self.token = ha_config.token
+    local host = ha_config.host or ""
+    local port = ha_config.port and (":" .. tostring(ha_config.port)) or ""
+
+    self.base_url = protocol .. "://" .. host .. port
+    self.token = ha_config.token or ""
 end
 
 --- Executes a REST request to Home Assistant
 -- Only POST requests include service_data / request_body / source
 function API:performRequest(entity, url, method, service_data)
-    http.TIMEOUT = 6 -- in seconds
-
     local request_body = service_data and rapidjson.encode(service_data) or nil
 
     local headers = {
@@ -28,49 +32,60 @@ function API:performRequest(entity, url, method, service_data)
 
     local response_body = {}
 
-    -- result, status code, headers, status line
+    -- default values from https://github.com/koreader/koreader/blob/22ea2320c56dd5c9b050f2b42423decc0be651e9/frontend/socketutil.lua#L52
+    socketutil:set_timeout(5, 15)
+
+    -- Returns: result (1 or nil), code (HTTP status or error text), headers, status line
+    -- Only result and code are used here
     local result, code = http.request {
         url = url,
         method = method,
         headers = headers,
         source = service_data and ltn12.source.string(request_body) or nil,
-        sink = ltn12.sink.table(response_body)
+        sink = socketutil.table_sink(response_body)
     }
+
+    socketutil:reset_timeout()
 
     local raw_response = table.concat(response_body)
 
     -- Error Handling
     if result == nil then
         -- e.g. code =  "connection refused" or "timeout"
-        return true, tostring(code)
+        return nil, tostring(code)
     elseif code ~= 200 and code ~= 201 then
         -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
-        return true, tostring(code .. " | Server Response:\n" .. raw_response)
+        return nil, tostring(code .. " | Server Response:\n" .. raw_response)
     end
 
     -- Successful Response Handling
     -- /api/template returns plain text, not JSON, so skip the decode path below.
     if entity and (entity.template or entity.attributes) then
-        return false, raw_response
+        return raw_response
     end
 
     if raw_response == "" then
-        return false, nil -- Success with no data
+        return true -- Success with no data
     end
 
     -- Try to decode JSON for actions that return data
-    local success, decoded = pcall(rapidjson.decode, raw_response)
-    if not success then
-        return true, string.format("JSON decode failed:\n%s", decoded)
+    local decoded, err = rapidjson.decode(raw_response)
+    if decoded == nil then
+        return nil, string.format("JSON decode failed:\n%s", tostring(err))
     end
 
     -- Successfully decoded JSON.
-    return false, decoded
+    return decoded
 end
 
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
 function API:services(entity)
-    local domain, action = entity.action:match("^([^.]+)%.(.+)$")
+    local domain, action = tostring(entity.action):match("^([^.]+)%.(.+)$")
+
+    if not domain then
+        return nil, "Invalid 'config.lua': action must be in the format domain.service (e.g. light.turn_on)"
+    end
+
     local url = string.format("%s/api/services/%s/%s",
         self.base_url, domain, action)
 
@@ -105,7 +120,7 @@ function API:template(entity)
     local url = string.format("%s/api/template", self.base_url)
 
     if type(entity.template) ~= "string" or entity.template == "" then
-        return true, "No or invalid template configured for this entity."
+        return nil, "Invalid 'config.lua': template must be a non-empty string"
     end
 
     -- Strips leading/trailing string whitespace and flattens line indentation
@@ -117,7 +132,27 @@ function API:template(entity)
     return self:performRequest(entity, url, "POST", service_data)
 end
 
--- POST /api/template - Evaluate a custom-made template for entity states & attributes
+--- POST /api/template - Evaluate a custom-made template for entity states & attributes
+-- Builds a template from the 'attributes' list in the config: one "name: value" line each.
+-- Unlike GET /api/states, state and timestamps arrive already formatted (units, translations, local time).
+--
+-- Example entity:
+--   {
+--       label = "Temperature Living Room",
+--       target = "sensor.living_room_temperature",
+--       attributes = { "state", "last_changed", "device_class" },
+--   }
+--
+-- Generated template:
+--   {% set t = 'sensor.living_room_temperature' %}
+--   state: {{ states[t].state_with_unit if state_attr(t, 'unit_of_measurement') else state_translated(t) }}
+--   last_changed: {{ states[t].last_changed | as_timestamp | timestamp_custom('%d %b %Y, %H:%M') }}
+--   device_class: {{ state_attr(t, 'device_class') }}
+--
+-- Rendered response (e.g.):
+--   state: 21.5 °C
+--   last_changed: 07 Oct 2026, 14:32
+--   device_class: temperature
 function API:statesAsTemplate(entity)
     local url = string.format("%s/api/template", self.base_url)
 
@@ -126,7 +161,7 @@ function API:statesAsTemplate(entity)
     attributes = (type(attributes) == "string") and { attributes } or (type(attributes) == "table" and attributes or {})
 
     if #attributes == 0 then
-        return true, "No attributes configured for this entity."
+        return nil, "Invalid 'config.lua': attributes must be a string (e.g. \"state\") or a non-empty list"
     end
 
     local lines = {}
