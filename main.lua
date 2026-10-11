@@ -49,11 +49,7 @@ function HomeAssistant:onActivateHAEvent(entity)
     end
 
     if NetworkMgr:willRerunWhenOnline(function()
-            -- Wait briefly after Wi-Fi connects: the device may not be online yet, and the re-run would then be skipped (seen on KindleBasic5)
-            -- See NetworkMgr:willRerunWhenOnline implementation
-            UIManager:scheduleIn(0.5, function()
-                self:onActivateHAEvent(entity)
-            end)
+            self:onActivateHAEvent(entity)
         end) then
         return
     end
