@@ -9,7 +9,7 @@ local API = {
 }
 
 -- Defaults for missing config values, so a missing host or token shows up as a request error instead of a crash.
--- port is optional: without it the URL has no port, so http/https use their defaults (80/443)
+-- port is optional: without it the URL has no port, so http/https use their defaults (80/443).
 function API:init(ha_config)
     local protocol = ha_config.https == true and "https" or "http"
     local host = ha_config.host or ""
@@ -23,6 +23,7 @@ end
 -- Only POST requests include service_data / request_body / source
 function API:performRequest(entity, url, method, service_data)
     local request_body = service_data and rapidjson.encode(service_data) or nil
+    local response_body = {}
 
     local headers = {
         ["Authorization"] = "Bearer " .. self.token,
@@ -30,13 +31,10 @@ function API:performRequest(entity, url, method, service_data)
         ["Content-Length"] = service_data and tostring(#request_body) or nil
     }
 
-    local response_body = {}
-
     -- default values from https://github.com/koreader/koreader/blob/22ea2320c56dd5c9b050f2b42423decc0be651e9/frontend/socketutil.lua#L52
     socketutil:set_timeout(5, 15)
 
-    -- Returns: result (1 or nil), code (HTTP status or error text), headers, status line
-    -- Only result and code are used here
+    -- result: 1 or nil | code: HTTP status or error text (headers/status line unused)
     local result, code = http.request {
         url = url,
         method = method,
@@ -49,16 +47,16 @@ function API:performRequest(entity, url, method, service_data)
 
     local raw_response = table.concat(response_body)
 
-    -- Error Handling
+    -- Error handling
     if result == nil then
-        -- e.g. code =  "connection refused" or "timeout"
+        -- e.g. code = "connection refused" or "timeout"
         return nil, tostring(code)
     elseif code ~= 200 and code ~= 201 then
         -- e.g. code = 400, raw_response = "400: Bad Request" or JSON {error message}
         return nil, tostring(code .. " | Server Response:\n" .. raw_response)
     end
 
-    -- Successful Response Handling
+    -- Successful response handling
     -- /api/template returns plain text, not JSON, so skip the decode path below.
     if entity and (entity.template or entity.attributes) then
         return raw_response
@@ -74,20 +72,17 @@ function API:performRequest(entity, url, method, service_data)
         return nil, string.format("JSON decode failed:\n%s", tostring(err))
     end
 
-    -- Successfully decoded JSON.
-    return decoded
+    return decoded -- Successfully decoded JSON
 end
 
 --- POST /api/services/<domain>/<service> - Call a Home Assistant service
 function API:services(entity)
     local domain, action = tostring(entity.action):match("^([^.]+)%.(.+)$")
-
     if not domain then
         return nil, "Invalid 'config.lua': action must be in the format domain.service (e.g. light.turn_on)"
     end
 
-    local url = string.format("%s/api/services/%s/%s",
-        self.base_url, domain, action)
+    local url = string.format("%s/api/services/%s/%s", self.base_url, domain, action)
 
     -- Build the JSON body for the service call
     local service_data = {}
@@ -117,15 +112,14 @@ end
 
 --- POST /api/template - Evaluate a Home Assistant template
 function API:template(entity)
-    local url = string.format("%s/api/template", self.base_url)
-
     if type(entity.template) ~= "string" or entity.template == "" then
         return nil, "Invalid 'config.lua': template must be a non-empty string"
     end
 
-    -- Strips leading/trailing string whitespace and flattens line indentation
-    -- this ensures that indented Lua long-strings ( template = [[ ... ]]) are sent to
-    -- to Home Assistant without unintentional formatting or padding.
+    local url = string.format("%s/api/template", self.base_url)
+
+    -- Strips leading/trailing whitespace and flattens line indentation, so indented Lua long-strings (template = [[ ... ]])
+    -- are sent to Home Assistant without unintentional formatting or padding.
     local trimmed_template = entity.template:gsub("^%s+", ""):gsub("%s+$", ""):gsub("\n%s+", "\n")
     local service_data = { template = trimmed_template }
 
@@ -154,23 +148,22 @@ end
 --   last_changed: 07 Oct 2026, 14:32
 --   device_class: temperature
 function API:statesAsTemplate(entity)
-    local url = string.format("%s/api/template", self.base_url)
-
-    local attributes = entity.attributes
     -- If it's a string, wrap it in a table. If it's nil or not a table, default to empty table.
+    local attributes = entity.attributes
     attributes = (type(attributes) == "string") and { attributes } or (type(attributes) == "table" and attributes or {})
 
     if #attributes == 0 then
         return nil, "Invalid 'config.lua': attributes must be a string (e.g. \"state\") or a non-empty list"
     end
 
-    local lines = {}
+    local url = string.format("%s/api/template", self.base_url)
 
     -- Define target ('t') once so all expressions below can reference it via states[t], state_attr(t, ...) etc.
-    table.insert(lines, string.format("{%% set t = '%s' %%}", entity.target))
+    local lines = { string.format("{%% set t = '%s' %%}", entity.target) }
 
     for _, attribute in ipairs(attributes) do
         local expression
+
         if attribute == "state" then
             -- Primary state value (state-level field), formatted with unit_of_measurement if available or a localized display value
             expression =
@@ -186,6 +179,7 @@ function API:statesAsTemplate(entity)
             -- Attribute-level field from the entity's attributes dictionary (e.g. brightness, rgb_color)
             expression = string.format("{{ state_attr(t, '%s') }}", attribute)
         end
+
         table.insert(lines, attribute .. ": " .. expression)
     end
 

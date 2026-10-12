@@ -9,13 +9,13 @@ local NetworkMgr = require("ui/network/manager")
 local InfoMessage = require("ui/widget/infomessage")
 local API = require("api")
 
--- Check if config.lua exists; if not, fall back to an empty config so the plugin still loads
+-- Fall back to an empty config if config.lua is missing, so the plugin still loads.
 local has_config, ha_config = pcall(require, "config")
 if not has_config then
     ha_config = { entities = {} }
 end
 
--- Entities without a label would crash the menu, so give them a visible placeholder
+-- Entities without a label would crash the menu, so give them a visible placeholder.
 for i, entity in ipairs(ha_config.entities) do
     entity.label = entity.label or string.format("Entity %d (missing label in config.lua)", i)
 end
@@ -25,7 +25,7 @@ local HomeAssistant = WidgetContainer:extend {
     is_doc_only = false,
 }
 
--- Define message timeouts (in seconds)
+-- Message timeouts in seconds (nil = stays until dismissed)
 HomeAssistant.TIMEOUTS = {
     SIMPLE   = 5,
     RESPONSE = nil,
@@ -40,62 +40,20 @@ function HomeAssistant:init()
     API:init(ha_config)
 end
 
---- Handle ActivateHAEvent (via menu or gesture)
--- Flow: validate entity -> wait for network (re-runs if Wi-Fi was off) -> call matching API method -> build/display result message
-function HomeAssistant:onActivateHAEvent(entity)
-    if not (entity.action or entity.template or entity.attributes) then
-        self:buildMessage(entity, nil, "Invalid 'config.lua': missing required fields")
-        return
+--- Register dispatcher actions for each Home Assistant entity
+-- This allows entities to be triggered via gestures.
+function HomeAssistant:onDispatcherRegisterActions()
+    for i, entity in ipairs(ha_config.entities) do
+        -- Internal action id based on the list position, e.g. "ha_entity_1"
+        Dispatcher:registerAction(string.format("ha_entity_%d", i), {
+            category = "none",
+            event = "ActivateHAEvent",
+            arg = entity,
+            title = entity.label,
+            general = true,
+            separator = (i == #ha_config.entities), -- add separator after last entity
+        })
     end
-
-    if NetworkMgr:willRerunWhenOnline(function()
-            self:onActivateHAEvent(entity)
-        end) then
-        return
-    end
-
-    local result, err
-
-    if entity.action then
-        result, err = API:services(entity)
-    elseif entity.template then
-        result, err = API:template(entity)
-    elseif entity.attributes then
-        result, err = API:statesAsTemplate(entity)
-    end
-
-    self:buildMessage(entity, result, err)
-end
-
---- Build user-facing message based on API result
-function HomeAssistant:buildMessage(entity, result, err)
-    local title, content, timeout
-
-    if err then
-        title   = "𝙀𝙧𝙧𝙤𝙧"
-        content = "⏵ Details:\n" .. err
-        timeout = self.TIMEOUTS.ERROR
-    elseif entity.action then
-        title   = "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯"
-        content = "action: " .. entity.action
-        timeout = self.TIMEOUTS.SIMPLE
-    elseif entity.template then
-        title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
-        content = result
-        timeout = self.TIMEOUTS.RESPONSE
-    elseif entity.attributes then
-        title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
-        content = result
-        timeout = self.TIMEOUTS.RESPONSE
-    end
-
-    UIManager:show(InfoMessage:new {
-        text = (
-            title .. "\n" ..
-            entity.label .. "\n\n" ..
-            content),
-        timeout = timeout,
-    })
 end
 
 --- Add Home Assistant submenu to the Tools menu
@@ -135,21 +93,60 @@ function HomeAssistant:addToMainMenu(menu_items)
     }
 end
 
---- Register dispatcher actions for each Home Assistant entity
--- This allows entities to be triggered via gestures
-function HomeAssistant:onDispatcherRegisterActions()
-    for i, entity in ipairs(ha_config.entities) do
-        local action_id = string.format("ha_entity_%d", i)
-
-        Dispatcher:registerAction(action_id, {
-            category = "none",
-            event = "ActivateHAEvent",
-            arg = entity,
-            title = entity.label,
-            general = true,
-            separator = (i == #ha_config.entities), -- add separator after last entity
-        })
+--- Handle ActivateHAEvent (via menu or gesture)
+-- Flow: validate entity -> wait for network (re-runs if Wi-Fi was off) -> call matching API method -> show result
+function HomeAssistant:onActivateHAEvent(entity)
+    if not (entity.action or entity.template or entity.attributes) then
+        self:buildMessage(entity, nil, "Invalid 'config.lua': missing required fields")
+        return
     end
+
+    if NetworkMgr:willRerunWhenOnline(function() self:onActivateHAEvent(entity) end) then
+        return
+    end
+
+    local result, err
+
+    if entity.action then
+        result, err = API:services(entity)
+    elseif entity.template then
+        result, err = API:template(entity)
+    elseif entity.attributes then
+        result, err = API:statesAsTemplate(entity)
+    end
+
+    self:buildMessage(entity, result, err)
+end
+
+--- Build and show a user-facing message based on the API result
+function HomeAssistant:buildMessage(entity, result, err)
+    local title, content, timeout
+
+    if err then
+        title   = "𝙀𝙧𝙧𝙤𝙧"
+        content = "⏵ Details:\n" .. err
+        timeout = self.TIMEOUTS.ERROR
+    elseif entity.action then
+        title   = "𝘗𝘦𝘳𝘧𝘰𝘳𝘮 𝘈𝘤𝘵𝘪𝘰𝘯"
+        content = "action: " .. entity.action
+        timeout = self.TIMEOUTS.SIMPLE
+    elseif entity.template then
+        title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
+        content = result
+        timeout = self.TIMEOUTS.RESPONSE
+    elseif entity.attributes then
+        title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
+        content = result
+        timeout = self.TIMEOUTS.RESPONSE
+    end
+
+    UIManager:show(InfoMessage:new {
+        text = (
+            title .. "\n" ..
+            entity.label .. "\n\n" ..
+            content),
+        timeout = timeout,
+    })
 end
 
 return HomeAssistant
