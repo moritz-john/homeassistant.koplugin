@@ -22,7 +22,7 @@ local has_legacy_config = package.searchpath("homeassistant_config", plugin_dir 
 
 -- Entities without a label would crash the menu, so give them a visible placeholder.
 for i, entity in ipairs(ha_config.entities) do
-    entity.label = entity.label or string.format("Entity %d (missing label in config.lua)", i)
+    entity.label = entity.label or string.format("Entity %d (missing label in config)", i)
 end
 
 local HomeAssistant = WidgetContainer:extend {
@@ -119,7 +119,7 @@ end
 -- Flow: validate entity -> wait for network (re-runs if Wi-Fi was off) -> call matching API method -> show result
 function HomeAssistant:onActivateHAEvent(entity)
     if not (entity.action or entity.template or entity.attributes) then
-        self:buildMessage(entity, nil, "Invalid 'config.lua': missing required fields")
+        self:buildMessage(entity, nil, "Invalid config: missing required fields")
         return
     end
 
