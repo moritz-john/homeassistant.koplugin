@@ -1,5 +1,6 @@
+config.lua
 debug_config.lua
 showcase_config.lua
-config.lua
+homeassistant_config.lua
 todo.txt
 
