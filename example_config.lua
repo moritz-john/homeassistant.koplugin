@@ -1,4 +1,4 @@
--- Rename this file to "config.lua" and customize it with your Home Assistant URL, token and entities.
+-- Rename this file to "homeassistant_config.lua" and customize it with your Home Assistant URL, token and entities.
 -- Restart KOReader afterwards. Full documentation: https://github.com/moritz-john/homeassistant.koplugin
 
 return {
