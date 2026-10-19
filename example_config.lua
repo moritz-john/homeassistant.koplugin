@@ -1,5 +1,6 @@
 -- Rename this file to "homeassistant_config.lua" and customize it with your Home Assistant URL, token and entities.
--- Restart KOReader afterwards. Full documentation: https://github.com/moritz-john/homeassistant.koplugin
+-- Restart KOReader afterwards. 
+-- Full documentation: https://github.com/moritz-john/homeassistant.koplugin
 
 return {
     -- Home Assistant connection settings
@@ -10,9 +11,8 @@ return {
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
 
     -- Home Assistant Entity configuration
-    -- Documentation: https://github.com/moritz-john/homeassistant.koplugin
     entities = {
-        -- Performe Actions:
+        -- Perform Actions:
         {
             label = "All Switches → turn_off",
             action = "switch.turn_off",
