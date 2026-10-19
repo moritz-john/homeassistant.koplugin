@@ -79,7 +79,7 @@ end
 function API:services(entity)
     local domain, action = tostring(entity.action):match("^([^.]+)%.(.+)$")
     if not domain then
-        return nil, "Invalid 'config.lua': action must be in the format domain.service (e.g. light.turn_on)"
+        return nil, "Invalid config: action must be in the format domain.service (e.g. light.turn_on)"
     end
 
     local url = string.format("%s/api/services/%s/%s", self.base_url, domain, action)
@@ -113,7 +113,7 @@ end
 --- POST /api/template - Evaluate a Home Assistant template
 function API:template(entity)
     if type(entity.template) ~= "string" or entity.template == "" then
-        return nil, "Invalid 'config.lua': template must be a non-empty string"
+        return nil, "Invalid config: template must be a non-empty string"
     end
 
     local url = string.format("%s/api/template", self.base_url)
@@ -153,7 +153,7 @@ function API:statesAsTemplate(entity)
     attributes = (type(attributes) == "string") and { attributes } or (type(attributes) == "table" and attributes or {})
 
     if #attributes == 0 then
-        return nil, "Invalid 'config.lua': attributes must be a string (e.g. \"state\") or a non-empty list"
+        return nil, "Invalid config: attributes must be a string (e.g. \"state\") or a non-empty list"
     end
 
     local url = string.format("%s/api/template", self.base_url)
