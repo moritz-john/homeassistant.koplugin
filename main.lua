@@ -7,13 +7,18 @@ local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
 local NetworkMgr = require("ui/network/manager")
 local InfoMessage = require("ui/widget/infomessage")
-local API = require("api")
+local API = require("homeassistant_api")
 
--- Fall back to an empty config if config.lua is missing, so the plugin still loads.
-local has_config, ha_config = pcall(require, "config")
+-- Fall back to an empty config if homeassistant_config.lua is missing, so the plugin still loads.
+local has_config, ha_config = pcall(require, "homeassistant_config")
 if not has_config then
     ha_config = { entities = {} }
 end
+
+-- Detect an old 'config.lua' that hasn't been renamed yet
+local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]+$") or "."
+local has_legacy_config = package.searchpath("homeassistant_config", plugin_dir .. "/?.lua") == nil
+    and package.searchpath("config", plugin_dir .. "/?.lua") ~= nil
 
 -- Entities without a label would crash the menu, so give them a visible placeholder.
 for i, entity in ipairs(ha_config.entities) do
@@ -73,6 +78,21 @@ function HomeAssistant:addToMainMenu(menu_items)
                         "\u{EAA5} Rename '𝘦𝘹𝘢𝘮𝘱𝘭𝘦_𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder.\n\n" ..
                         "\u{EAA8} Edit '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' with your Home Assistant URL, token and entities, then restart KOReader.\n\n" ..
                         "\u{E885} Visit https://github.com/moritz-john/homeassistant.koplugin for the full documentation.\n"),
+                })
+            end,
+        })
+    end
+
+    if has_legacy_config then
+        table.insert(sub_items, {
+            text = _(" \u{F071} Rename config.lua (tap for information)"),
+            callback = function()
+                UIManager:show(InfoMessage:new {
+                    text = _(
+                        "\n" ..
+                        "Rename '𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder, then restart KOReader. The contents stay the same.\n\n" ..
+                        "Also make sure that '𝘢𝘱𝘪.𝘭𝘶𝘢' is replaced by the new '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗮𝗽𝗶.𝗹𝘂𝗮'.\n"
+                    ),
                 })
             end,
         })
