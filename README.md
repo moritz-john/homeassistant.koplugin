@@ -32,8 +32,8 @@
 ### Step 1: Download the Plugin
 [Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`:  
 
-### Step 2: Edit `example_config.lua` / `config.lua`
-Rename `example_config.lua` to `config.lua`.
+### Step 2: Edit `example_config.lua` / `homeassistant_config.lua`
+Rename `example_config.lua` to `homeassistant_config.lua`.
 
 Then follow the [Configuration](#configuration) section.
 
@@ -44,7 +44,7 @@ Tip: You can install and configure the plugin in KOReader for macOS or Linux fir
 
 ### Step 3: Copy Files to Your Device
 
-After editing `config.lua`, copy the files to your KOReader device:
+After editing `homeassistant_config.lua`, copy the files to your KOReader device:
 
 **Copy the entire `homeassistant.koplugin` folder into `koreader/plugins/`**  
 
@@ -54,7 +54,7 @@ The plugin appears under **Tools → Page 2 → Home Assistant** or can be calle
 
 ## Configuration
 
-All configuration lives in `config.lua`.  
+All configuration lives in `homeassistant_config.lua`.  
 It consists of **connection settings** and a list of **entries** (Home Assistant entities).
 
 ### Connection Settings
@@ -80,7 +80,7 @@ return {
 
 ### Adding Home Assistant entities
 
-Inside the `entities` table in `config.lua`, you can define three types of items:
+Inside the `entities` table in `homeassistant_config.lua`, you can define three types of items:
 
 | Type            | Purpose                                 | Required Fields                 | Optional |
 | :-------------- | :-------------------------------------- | :------------------------------ | :------- |
@@ -93,7 +93,7 @@ _Think of each entry as a single Home Assistant action or state query that becom
 ### Controlling Entities | 'action'
 
 Let's start with a simple example: "turn on a light".  
-The entry in `config.lua` would look like this:
+The entry in `homeassistant_config.lua` would look like this:
 
 ```lua
 {   
@@ -121,7 +121,7 @@ You can add additional data to your action. In this example we add the data attr
     },
 },
 ```
-_The syntax in `config.lua` is loosely based on the YAML action syntax in Home Assistant._
+_The syntax in `homeassistant_config.lua` is loosely based on the YAML action syntax in Home Assistant._
 
 **Finding Available Action Attributes:**
 
@@ -140,7 +140,7 @@ To discover what additional data you can send with an action:
 
 You may target multiple entities, areas, or labels – but do not mix target types.
 
-| Target Scope          | Example `config.lua` Syntax                         |
+| Target Scope          | Example `homeassistant_config.lua` Syntax           |
 | :-------------------- | :-------------------------------------------------- |
 | **Single Entity**     | `target = "light.reading_lamp",`                    |
 | **Multiple Entities** | `target = {"light.lamp_1", "light.lamp_2"},`        |
@@ -276,11 +276,11 @@ Use the [template editor](https://my.home-assistant.io/redirect/developer_templa
 },
 ```
 
-**Example YAML to `config.lua` syntax with ALL the data:**
+**Example YAML to `homeassistant_config.lua` syntax with ALL the data:**
 
 <details>
 
-In theory you can take the whole data part (!) from a Home Assistant YAML action and "convert" it into the Lua syntax required in `config.lua`:
+In theory you can take the whole data part (!) from a Home Assistant YAML action and "convert" it into the Lua syntax required in `homeassistant_config.lua`:
 
 <img src="assets/yaml_play_media.png" style="width:80%; height:auto;" />
 
@@ -360,7 +360,7 @@ In theory you can take the whole data part (!) from a Home Assistant YAML action
 ## KOReader Gestures
 
 You can trigger your Home Assistant entities directly through KOReader gestures.  
-Each gesture can be assigned to any entity you have configured in `config.lua`.
+Each gesture can be assigned to any entity you have configured in `homeassistant_config.lua`.
 
 For any chosen gesture, you will find your entities in:  
 **General▸ → Pages 1–X [find your Home Assistant entity]**
