@@ -30,7 +30,7 @@
 ## Installation
 
 ### Step 1: Download the Plugin
-[Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`:  
+[Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`  
 
 ### Step 2: Edit `example_config.lua` / `homeassistant_config.lua`
 Rename `example_config.lua` to `homeassistant_config.lua`.
@@ -40,7 +40,7 @@ Then follow the [Configuration](#configuration) section.
 Tip: You can install and configure the plugin in KOReader for macOS or Linux first. This makes it easier to fix configuration errors before copying the files to your e-reader.
 
 > [!warning]
-> Be aware of proper indentation, `{}` and `,` otherwise you will get syntax errors
+> Be careful with `{}` and `,` otherwise you will get syntax errors.
 
 ### Step 3: Copy Files to Your Device
 
@@ -67,8 +67,13 @@ return {
     host = "192.168.1.10",
     port = 8123,
     https = false,
-    token =
+    token = 
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
+
+    entities = {
+        -- your entities go here (see below)
+    },
+}
 ```
 
 > [!tip]
@@ -363,7 +368,7 @@ You can trigger your Home Assistant entities directly through KOReader gestures.
 Each gesture can be assigned to any entity you have configured in `homeassistant_config.lua`.
 
 For any chosen gesture, you will find your entities in:  
-**General▸ → Pages 1–X: [find your Home Assistant entity]**
+**General▸ → Page 1–X: [find your Home Assistant entity]**
 
 The actions are named after the `label` of each entity.
 
@@ -389,7 +394,7 @@ It opens a ButtonDialog that lists every entity from your configuration file. Ta
 </p>
 
 ## Requirements
-- KOReader (tested with: 2025.10 "Ghost" on a Kindle Basic 2024)  
+- KOReader (tested with: 2026.07.1 on a Kindle Basic 2024)  
 - Home Assistant & a Long-Lived Access Token
 
 ## Screenshots
@@ -407,4 +412,4 @@ It opens a ButtonDialog that lists every entity from your configuration file. Ta
 
 [Home Assistant: REST API](https://developers.home-assistant.io/docs/api/rest/)  
 [Home Assistant: Performing actions](https://www.home-assistant.io/docs/scripts/perform-actions/)  
-[Home Assistant: State and state object ](https://www.home-assistant.io/docs/configuration/state_object/)
+[Home Assistant: State and state object](https://www.home-assistant.io/docs/configuration/state_object/)
