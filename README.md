@@ -8,7 +8,7 @@
 
 <p align="center">
 <img src="assets/homeassistant_koplugin_screenshots.png"  alt="homeassistant.koplugin screenshots" />
-  <i>homeassistant.koplugin: a template query [left] & QuickMenu gesture [right]</i>
+  <i>homeassistant.koplugin: a template query [left] & ButtonDialog gesture [right]</i>
 </p>
 
 ## Features
@@ -363,25 +363,29 @@ You can trigger your Home Assistant entities directly through KOReader gestures.
 Each gesture can be assigned to any entity you have configured in `homeassistant_config.lua`.
 
 For any chosen gesture, you will find your entities in:  
-**General▸ → Pages 1–X [find your Home Assistant entity]**
+**General▸ → Pages 1–X: [find your Home Assistant entity]**
 
-The actions will be named after your entity `label`.
+The actions are named after the `label` of each entity.
+
+<p align="center">
+<img src="assets/homeassistant_koplugin_gestures_menu.png" style="width:70%; height:auto;" />
+</p>
 
 A complete gesture example:  
 **Settings → Taps and gestures → Gesture manager▸**  
 **Long-press on corner▸ → Bottom Left → General▸ → Page 1–X: Toggle: Reading Lamp**
 
-### QuickMenu
+If you want several entities behind a single gesture, you can build a list manually with a [Quick Menu](https://koreader.rocks/user_guide/#L2-quickmenu).
 
-The simplest way to access your Home Assistant entities is through a [QuickMenu](https://koreader.rocks/user_guide/#L2-quickmenu).
+### ButtonDialog
 
-1) Add as many entities as you want to a gesture (e.g. **Long-press on corner▸ → Bottom Left**)  
-2) Select **Show as QuickMenu** in **Long-press on corner▸ → Bottom Left → Page 2**.
+The simplest way to access all your Home Assistant entities is the built-in gesture action `☰ Home Assistant: all entities`.  
+It opens a ButtonDialog that lists every entity from your configuration file. Tap an entity to run it.
 
-Result:
+**Result** _(triggered via Long-press on corner: Bottom Right)_:
 
 <p align="center">
-<img src="assets/homeassistant_koplugin_gesture_quick_menu.gif" style="width:70%; height:auto;" />
+<img src="assets/homeassistant_koplugin_buttondialog.gif" style="width:70%; height:auto;" />
 </p>
 
 ## Requirements
