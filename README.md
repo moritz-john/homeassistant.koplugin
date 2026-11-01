@@ -8,7 +8,7 @@
 
 <p align="center">
 <img src="assets/homeassistant_koplugin_screenshots.png"  alt="homeassistant.koplugin screenshots" />
-  <i>homeassistant.koplugin: a template query [left] & QuickMenu gesture [right]</i>
+  <i>homeassistant.koplugin: a template query [left] & ButtonDialog gesture [right]</i>
 </p>
 
 ## Features
@@ -30,7 +30,7 @@
 ## Installation
 
 ### Step 1: Download the Plugin
-[Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`:  
+[Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`  
 
 ### Step 2: Edit `example_config.lua` / `homeassistant_config.lua`
 Rename `example_config.lua` to `homeassistant_config.lua`.
@@ -40,7 +40,7 @@ Then follow the [Configuration](#configuration) section.
 Tip: You can install and configure the plugin in KOReader for macOS or Linux first. This makes it easier to fix configuration errors before copying the files to your e-reader.
 
 > [!warning]
-> Be aware of proper indentation, `{}` and `,` otherwise you will get syntax errors
+> Be careful with `{}` and `,` otherwise you will get syntax errors.
 
 ### Step 3: Copy Files to Your Device
 
@@ -67,8 +67,13 @@ return {
     host = "192.168.1.10",
     port = 8123,
     https = false,
-    token =
+    token = 
     "PasteYourHomeAssistantLong-LivedAccessTokenHere",
+
+    entities = {
+        -- your entities go here (see below)
+    },
+}
 ```
 
 > [!tip]
@@ -363,29 +368,33 @@ You can trigger your Home Assistant entities directly through KOReader gestures.
 Each gesture can be assigned to any entity you have configured in `homeassistant_config.lua`.
 
 For any chosen gesture, you will find your entities in:  
-**General▸ → Pages 1–X [find your Home Assistant entity]**
+**General▸ → Page 1–X: [find your Home Assistant entity]**
 
-The actions will be named after your entity `label`.
+The actions are named after the `label` of each entity.
+
+<p align="center">
+<img src="assets/homeassistant_koplugin_gestures_menu.png" style="width:70%; height:auto;" />
+</p>
 
 A complete gesture example:  
 **Settings → Taps and gestures → Gesture manager▸**  
 **Long-press on corner▸ → Bottom Left → General▸ → Page 1–X: Toggle: Reading Lamp**
 
-### QuickMenu
+If you want several entities behind a single gesture, you can build a list manually with a [Quick Menu](https://koreader.rocks/user_guide/#L2-quickmenu).
 
-The simplest way to access your Home Assistant entities is through a [QuickMenu](https://koreader.rocks/user_guide/#L2-quickmenu).
+### ButtonDialog
 
-1) Add as many entities as you want to a gesture (e.g. **Long-press on corner▸ → Bottom Left**)  
-2) Select **Show as QuickMenu** in **Long-press on corner▸ → Bottom Left → Page 2**.
+The simplest way to access all your Home Assistant entities is the built-in gesture action `☰ Home Assistant: all entities`.  
+It opens a ButtonDialog that lists every entity from your configuration file. Tap an entity to run it.
 
-Result:
+**Result** _(triggered via Long-press on corner: Bottom Right)_:
 
 <p align="center">
-<img src="assets/homeassistant_koplugin_gesture_quick_menu.gif" style="width:70%; height:auto;" />
+<img src="assets/homeassistant_koplugin_buttondialog.gif" style="width:70%; height:auto;" />
 </p>
 
 ## Requirements
-- KOReader (tested with: 2025.10 "Ghost" on a Kindle Basic 2024)  
+- KOReader (tested with: 2026.07.1 on a Kindle Basic 2024)  
 - Home Assistant & a Long-Lived Access Token
 
 ## Screenshots
@@ -403,4 +412,4 @@ Result:
 
 [Home Assistant: REST API](https://developers.home-assistant.io/docs/api/rest/)  
 [Home Assistant: Performing actions](https://www.home-assistant.io/docs/scripts/perform-actions/)  
-[Home Assistant: State and state object ](https://www.home-assistant.io/docs/configuration/state_object/)
+[Home Assistant: State and state object](https://www.home-assistant.io/docs/configuration/state_object/)

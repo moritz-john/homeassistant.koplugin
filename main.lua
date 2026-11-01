@@ -7,6 +7,7 @@ local Dispatcher = require("dispatcher")
 local UIManager = require("ui/uimanager")
 local NetworkMgr = require("ui/network/manager")
 local InfoMessage = require("ui/widget/infomessage")
+local ButtonDialog = require("ui/widget/buttondialog")
 local API = require("homeassistant_api")
 
 -- Fall back to an empty config if homeassistant_config.lua is missing, so the plugin still loads.
@@ -45,9 +46,18 @@ function HomeAssistant:init()
     API:init(ha_config)
 end
 
---- Register dispatcher actions for each Home Assistant entity
--- This allows entities to be triggered via gestures.
+--- Make Home Assistant actions assignable to gestures
 function HomeAssistant:onDispatcherRegisterActions()
+    -- Combined action: opens a ButtonDialog listing all configured entities
+    Dispatcher:registerAction("ha_show_button_dialog", {
+        category = "none",
+        event = "ShowHAButtonDialog",
+        title = "\u{EA5B} Home Assistant: all entities",
+        general = true,
+        separator = (#ha_config.entities == 0), -- last Home Assistant entry if no entities exist
+    })
+
+    -- Individual actions: one gesture action per configured entity
     for i, entity in ipairs(ha_config.entities) do
         -- Internal action id based on the list position, e.g. "ha_entity_1"
         Dispatcher:registerAction(string.format("ha_entity_%d", i), {
@@ -113,6 +123,38 @@ function HomeAssistant:addToMainMenu(menu_items)
         sorting_hint = "tools",
         sub_item_table = sub_items,
     }
+end
+
+--- Handle ShowHAButtonDialog: ButtonDialog listing all entities
+function HomeAssistant:onShowHAButtonDialog()
+    if #ha_config.entities == 0 then
+        self:buildMessage({ label = "No Entity" }, nil, "No entities configured in 'homeassistant_config.lua'.")
+        return
+    end
+
+    local button_dialog
+    local buttons = {} -- list of rows; each row is a list of buttons (here: one button per row)
+
+    for _, entity in ipairs(ha_config.entities) do
+        table.insert(buttons, {
+            {
+                text = entity.label,
+                align = "left",
+                callback = function()
+                    UIManager:close(button_dialog) -- close the dialog first
+                    self:onActivateHAEvent(entity)
+                end,
+            },
+        })
+    end
+
+    button_dialog = ButtonDialog:new {
+        title = "\u{EECE} Home Assistant",
+        title_align = "center",
+        width_factor = 0.6,
+        buttons = buttons,
+    }
+    UIManager:show(button_dialog)
 end
 
 --- Handle ActivateHAEvent (via menu or gesture)
