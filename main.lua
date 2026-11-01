@@ -16,11 +16,6 @@ if not has_config then
     ha_config = { entities = {} }
 end
 
--- Detect an old 'config.lua' that hasn't been renamed yet
-local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]+$") or "."
-local has_legacy_config = package.searchpath("homeassistant_config", plugin_dir .. "/?.lua") == nil
-    and package.searchpath("config", plugin_dir .. "/?.lua") ~= nil
-
 -- Entities without a label would crash the menu, so give them a visible placeholder.
 for i, entity in ipairs(ha_config.entities) do
     entity.label = entity.label or string.format("Entity %d (missing label in config)", i)
@@ -77,7 +72,7 @@ function HomeAssistant:addToMainMenu(menu_items)
 
     -- If homeassistant_config.lua doesn't exist, show "Getting Started" menu entry
     -- (https://yaytext.com/bold-italic/)
-    if not has_config and not has_legacy_config then
+    if not has_config then
         table.insert(sub_items, {
             text = _(" \u{EB62} Getting Started (tap for information)"),
             callback = function()
@@ -88,21 +83,6 @@ function HomeAssistant:addToMainMenu(menu_items)
                         "\u{EAA5} Rename '𝘦𝘹𝘢𝘮𝘱𝘭𝘦_𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder.\n\n" ..
                         "\u{EAA8} Edit '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' with your Home Assistant URL, token and entities, then restart KOReader.\n\n" ..
                         "\u{E885} Visit https://github.com/moritz-john/homeassistant.koplugin for the full documentation.\n"),
-                })
-            end,
-        })
-    end
-
-    if has_legacy_config then
-        table.insert(sub_items, {
-            text = _(" \u{F071} Rename config.lua (tap for information)"),
-            callback = function()
-                UIManager:show(InfoMessage:new {
-                    text = _(
-                        "\n" ..
-                        "Rename '𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder, then restart KOReader. The contents stay the same.\n\n" ..
-                        "Also make sure that '𝘢𝘱𝘪.𝘭𝘶𝘢' is replaced by the new '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗮𝗽𝗶.𝗹𝘂𝗮'.\n"
-                    ),
                 })
             end,
         })
