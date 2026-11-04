@@ -2,18 +2,23 @@
 -- This plugin allows KOReader to control Home Assistant entities through its REST API.
 
 local _ = require("gettext")
-local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local logger = require("logger")
 local Dispatcher = require("dispatcher")
+local DataStorage = require("datastorage")
 local UIManager = require("ui/uimanager")
 local NetworkMgr = require("ui/network/manager")
+local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InfoMessage = require("ui/widget/infomessage")
 local ButtonDialog = require("ui/widget/buttondialog")
 local API = require("homeassistant_api")
 
+local config_path = DataStorage:getSettingsDir() .. "/homeassistant_config.lua"
+
 -- Fall back to an empty config if homeassistant_config.lua is missing, so the plugin still loads.
-local has_config, ha_config = pcall(require, "homeassistant_config")
+local has_config, ha_config = pcall(dofile, config_path)
 if not has_config then
-    ha_config = { entities = {} }
+    logger.warn("homeassistant: could not load config:", ha_config)
+    ha_config = { entities = {} } -- empty entity list: lets all later ha_config.entities loops run without errors
 end
 
 -- Entities without a label would crash the menu, so give them a visible placeholder.
@@ -191,6 +196,14 @@ function HomeAssistant:buildMessage(entity, result, err)
             content),
         timeout = timeout,
     })
+end
+
+--- Uninstall hook
+function HomeAssistant:deletePluginSettings()
+    local ok, err = os.remove(config_path)
+    if not ok then
+        logger.warn("homeassistant: could not delete", err)
+    end
 end
 
 return HomeAssistant
