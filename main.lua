@@ -92,19 +92,17 @@ end
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
 
-    -- If homeassistant_config.lua doesn't exist, show "Getting Started" menu entry
-    -- (https://yaytext.com/bold-italic/)
-    if not has_config then
+    -- First run or unedited sample config: show a "Getting Started" entry that explains the setup steps
+    if not has_config or ha_config.show_setup_hint == true then
         table.insert(sub_items, {
-            text = _(" \u{EB62} Getting Started (tap for information)"),
+            text = "\u{EB62} Getting Started (tap for information)",
             callback = function()
                 UIManager:show(InfoMessage:new {
-                    text = _(
-                        "\n" ..
-                        "From your computer:\n" ..
-                        "\u{EAA5} Rename '𝘦𝘹𝘢𝘮𝘱𝘭𝘦_𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder.\n\n" ..
-                        "\u{EAA8} Edit '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' with your Home Assistant URL, token and entities, then restart KOReader.\n\n" ..
-                        "\u{E885} Visit https://github.com/moritz-john/homeassistant.koplugin for the full documentation.\n"),
+                    text =
+                        "From your computer:\n\n" ..
+                        "\u{EAA5} Go to 'koreader/settings/' and edit 'homeassistant_config.lua'\n\n" ..
+                        "\u{EAA8} Configure your host, token and entities, then restart KOReader.\n\n" ..
+                        "\u{E885} Full documentation: https://github.com/moritz-john/homeassistant.koplugin\n",
                 })
             end,
         })
