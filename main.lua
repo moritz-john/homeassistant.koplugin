@@ -5,6 +5,8 @@ local _ = require("gettext")
 local logger = require("logger")
 local Dispatcher = require("dispatcher")
 local DataStorage = require("datastorage")
+local ffiutil = require("ffi/util")
+local lfs = require("libs/libkoreader-lfs")
 local UIManager = require("ui/uimanager")
 local NetworkMgr = require("ui/network/manager")
 local WidgetContainer = require("ui/widget/container/widgetcontainer")
@@ -38,8 +40,23 @@ HomeAssistant.TIMEOUTS = {
     ERROR    = nil
 }
 
+--- Create the user config on first run
+function HomeAssistant:copySampleConfig()
+    -- If 'homeassistant_config.lua' already exists, do nothing
+    if lfs.attributes(config_path, "mode") == "file" then
+        return
+    end
+
+    -- Copy the sample config into the settings directory, renaming it to 'homeassistant_config.lua'
+    local copy_err = ffiutil.copyFile(self.path .. "/homeassistant_config.sample.lua", config_path)
+    if copy_err then
+        logger.warn("homeassistant: could not copy sample config:", copy_err)
+    end
+end
+
 --- Initialize the plugin
 function HomeAssistant:init()
+    self:copySampleConfig()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 
