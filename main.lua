@@ -108,6 +108,24 @@ function HomeAssistant:addToMainMenu(menu_items)
         })
     end
 
+    -- Config is still the shipped example: label the entries below as examples
+    if ha_config.show_setup_hint == true then
+        table.insert(sub_items, {
+            text = "Example entries:",
+            enabled = false,
+        })
+    end
+
+    -- Config loaded but has no entities: show a hint instead of an empty submenu
+    if has_config and #ha_config.entities == 0 then
+        table.insert(sub_items, {
+            text = " \u{ED25} No entities configured",
+            callback = function()
+                self:buildMessage({ label = "No Entity" }, nil, "No entities configured in 'homeassistant_config.lua'.")
+            end,
+        })
+    end
+
     -- Add a menu item for each configured Home Assistant entity
     for _, entity in ipairs(ha_config.entities) do
         table.insert(sub_items, {
