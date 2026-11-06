@@ -75,8 +75,8 @@ function HomeAssistant:onDispatcherRegisterActions()
     })
 
     -- Individual actions: one gesture action per configured entity
+    -- Ids are position-based, so reordering or deleting entities remaps existing gestures.
     for i, entity in ipairs(ha_config.entities) do
-        -- Internal action id based on the list position, e.g. "ha_entity_1"
         Dispatcher:registerAction(string.format("ha_entity_%d", i), {
             category = "none",
             event = "ActivateHAEvent",
@@ -183,6 +183,7 @@ function HomeAssistant:onActivateHAEvent(entity)
         return
     end
 
+    -- Offline: queues a re-run once Wi-Fi is up, so stop here.
     if NetworkMgr:willRerunWhenOnline(function() self:onActivateHAEvent(entity) end) then
         return
     end
@@ -214,11 +215,11 @@ function HomeAssistant:buildMessage(entity, result, err)
         timeout = self.TIMEOUTS.SIMPLE
     elseif entity.template then
         title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
-        content = result
+        content = result or ""
         timeout = self.TIMEOUTS.RESPONSE
     elseif entity.attributes then
         title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
-        content = result
+        content = result or ""
         timeout = self.TIMEOUTS.RESPONSE
     end
 
