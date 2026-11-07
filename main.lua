@@ -16,18 +16,6 @@ local API = require("homeassistant_api")
 
 local config_path = DataStorage:getSettingsDir() .. "/homeassistant_config.lua"
 
--- Fall back to an empty config if homeassistant_config.lua is missing, so the plugin still loads.
-local has_config, ha_config = pcall(dofile, config_path)
-if not has_config then
-    logger.warn("homeassistant: could not load config:", ha_config)
-    ha_config = { entities = {} } -- empty entity list: lets all later ha_config.entities loops run without errors
-end
-
--- Entities without a label would crash the menu, so give them a visible placeholder.
-for i, entity in ipairs(ha_config.entities) do
-    entity.label = entity.label or string.format("Entity %d (missing label in config)", i)
-end
-
 local HomeAssistant = WidgetContainer:extend {
     name        = "homeassistant",
     is_doc_only = false,
@@ -40,50 +28,68 @@ HomeAssistant.TIMEOUTS = {
     ERROR    = nil
 }
 
---- Create the user config on first run
-function HomeAssistant:copySampleConfig()
-    -- If 'homeassistant_config.lua' already exists, do nothing
-    if lfs.attributes(config_path, "mode") == "file" then
-        return
+--- Load the user config into self.config.
+-- self.config always has an `entities` list; self.has_config is false if the config is broken or invalid.
+function HomeAssistant:loadConfig()
+    -- No user config yet: copy the sample into the settings directory
+    if lfs.attributes(config_path, "mode") ~= "file" then
+        local copy_err = ffiutil.copyFile(self.path .. "/homeassistant_config.sample.lua", config_path)
+        if copy_err then
+            logger.warn("homeassistant: could not copy sample config:", copy_err)
+        end
     end
 
-    -- Copy the sample config into the settings directory, renaming it to 'homeassistant_config.lua'
-    local copy_err = ffiutil.copyFile(self.path .. "/homeassistant_config.sample.lua", config_path)
-    if copy_err then
-        logger.warn("homeassistant: could not copy sample config:", copy_err)
+    local ok, result = pcall(dofile, config_path) -- execute config file, catch errors
+
+    -- Valid = ran without errors, returned a table (i.e. has 'return { ... }') containing an 'entities' table
+    local has_config = ok and type(result) == "table" and type(result.entities) == "table"
+    -- Use the config if valid, otherwise an empty entity list so later entity loops don't fail
+    local ha_config = has_config and result or { entities = {} }
+
+    if not has_config then
+        logger.warn("homeassistant: could not load config:", result)
     end
+
+    -- Entities without a label would crash the menu, so give them a visible placeholder.
+    for i, entity in ipairs(ha_config.entities) do
+        entity.label = entity.label or string.format("Entity %d (missing label in config)", i)
+    end
+
+    self.has_config, self.config = has_config, ha_config
 end
 
 --- Initialize the plugin
 function HomeAssistant:init()
-    self:copySampleConfig()
+    self:loadConfig()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 
-    API:init(ha_config)
+    API:init(self.config)
 end
 
 --- Make Home Assistant actions assignable to gestures
 function HomeAssistant:onDispatcherRegisterActions()
+    local entities = self.config.entities
+
     -- Combined action: opens a ButtonDialog listing all configured entities
     Dispatcher:registerAction("ha_show_button_dialog", {
         category = "none",
         event = "ShowHAButtonDialog",
         title = "\u{EA5B} Home Assistant: all entities",
         general = true,
-        separator = (#ha_config.entities == 0), -- last Home Assistant entry if no entities exist
+        separator = (#entities == 0), -- last Home Assistant entry if no entities exist
     })
 
     -- Individual actions: one gesture action per configured entity
     -- Ids are position-based, so reordering or deleting entities remaps existing gestures.
-    for i, entity in ipairs(ha_config.entities) do
+    for i, entity in ipairs(entities) do
         Dispatcher:registerAction(string.format("ha_entity_%d", i), {
             category = "none",
             event = "ActivateHAEvent",
             arg = entity,
             title = entity.label,
             general = true,
-            separator = (i == #ha_config.entities), -- add separator after last entity
+            separator = (i == #entities), -- add separator after last entity
         })
     end
 end
@@ -92,8 +98,8 @@ end
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
 
-    -- First run or unedited sample config: show a "Getting Started" entry that explains the setup steps
-    if not has_config or ha_config.show_setup_hint == true then
+    -- Config missing/broken or still the shipped example: show a "Getting Started" entry that explains the setup steps
+    if not self.has_config or self.config.show_setup_hint == true then
         table.insert(sub_items, {
             text = "\u{EB62} Getting Started (tap for information)",
             callback = function()
@@ -109,7 +115,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     end
 
     -- Config is still the shipped example: label the entries below as examples
-    if ha_config.show_setup_hint == true then
+    if self.config.show_setup_hint == true then
         table.insert(sub_items, {
             text = "Example entries:",
             enabled = false,
@@ -117,7 +123,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     end
 
     -- Config loaded but has no entities: show a hint instead of an empty submenu
-    if has_config and #ha_config.entities == 0 then
+    if self.has_config and #self.config.entities == 0 then
         table.insert(sub_items, {
             text = " \u{ED25} No entities configured",
             callback = function()
@@ -127,7 +133,7 @@ function HomeAssistant:addToMainMenu(menu_items)
     end
 
     -- Add a menu item for each configured Home Assistant entity
-    for _, entity in ipairs(ha_config.entities) do
+    for _, entity in ipairs(self.config.entities) do
         table.insert(sub_items, {
             text = entity.label,
             callback = function()
@@ -145,7 +151,7 @@ end
 
 --- Handle ShowHAButtonDialog: ButtonDialog listing all entities
 function HomeAssistant:onShowHAButtonDialog()
-    if #ha_config.entities == 0 then
+    if #self.config.entities == 0 then
         self:buildMessage({ label = "No Entity" }, nil, "No entities configured in 'homeassistant_config.lua'.")
         return
     end
@@ -153,7 +159,7 @@ function HomeAssistant:onShowHAButtonDialog()
     local button_dialog
     local buttons = {} -- list of rows; each row is a list of buttons (here: one button per row)
 
-    for _, entity in ipairs(ha_config.entities) do
+    for _, entity in ipairs(self.config.entities) do
         table.insert(buttons, {
             {
                 text = entity.label,
