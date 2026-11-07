@@ -114,6 +114,14 @@ function HomeAssistant:addToMainMenu(menu_items)
         })
     end
 
+    -- Config could not be loaded or is invalid: point the user to the log
+    if not self.has_config then
+        table.insert(sub_items, {
+            text = "Config could not be loaded (see crash.log)",
+            enabled = false,
+        })
+    end
+
     -- Config is still the shipped example: label the entries below as examples
     if self.config.show_setup_hint == true then
         table.insert(sub_items, {
