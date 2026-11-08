@@ -1,6 +1,6 @@
 # homeassistant.koplugin
 
-> In case you are coming from [koreader/contrib](https://github.com/koreader/contrib), make sure that you checkout [the latest commit](https://github.com/moritz-john/homeassistant.koplugin).
+> In case you are coming from [koreader/contrib](https://github.com/koreader/contrib), make sure that you check out [the latest commit](https://github.com/moritz-john/homeassistant.koplugin).
 
 <p align="center">
   Jump to the <a href="#installation">[Installation]</a>, <a href="#configuration">[Configuration]</a> or <a href="#examples">[Examples]</a> section
@@ -30,32 +30,42 @@
 ## Installation
 
 ### Step 1: Download the Plugin
+
 [Download the latest release](https://github.com/moritz-john/homeassistant.koplugin/releases) and unpack `homeassistant.koplugin.zip`  
 
-### Step 2: Edit `example_config.lua` / `homeassistant_config.lua`
-Rename `example_config.lua` to `homeassistant_config.lua`.
+### Step 2: Copy the Plugin to Your Device
 
-Then follow the [Configuration](#configuration) section.
+Copy the entire `homeassistant.koplugin` folder into `koreader/plugins/`.
 
-Tip: You can install and configure the plugin in KOReader for macOS or Linux first. This makes it easier to fix configuration errors before copying the files to your e-reader.
+### Step 3: Restart KOReader
 
-> [!warning]
-> Be careful with `{}` and `,` otherwise you will get syntax errors.
+On first start, the plugin creates your configuration file in `koreader/settings/homeassistant_config.lua`.
 
-### Step 3: Copy Files to Your Device
+```text
+📂 koreader/settings/
+├── homeassistant_config.lua
+└── ... (other files)
+```
 
-After editing `homeassistant_config.lua`, copy the files to your KOReader device:
+### Step 4: Edit Your Config
 
-**Copy the entire `homeassistant.koplugin` folder into `koreader/plugins/`**  
+Connect your device to your computer and edit `koreader/settings/homeassistant_config.lua`.
 
-### Step 4: Restart KOReader
+The example entries are placeholders and won't work until you add your host, port and token, and edit the entities to match your own setup. When you're done, set `show_setup_hint = false`.
 
-The plugin appears under **Tools → Page 2 → Home Assistant** or can be called from KOReader [gestures](#koreader-gestures).
+**See the [Configuration](#configuration) section for details.**
+
+### Step 5: Restart KOReader Again
+
+Restart KOReader so the new config is loaded. The plugin is now available under **Tools → Page X → Home Assistant** or can be called from KOReader [gestures](#koreader-gestures).
 
 ## Configuration
 
-All configuration lives in `homeassistant_config.lua`.  
+All configuration lives in `koreader/settings/homeassistant_config.lua`.   
 It consists of **connection settings** and a list of **entries** (Home Assistant entities).
+
+> [!warning]
+> Be careful with `{}` and `,` otherwise you will get syntax errors.
 
 ### Connection Settings
 
@@ -64,6 +74,7 @@ Change `host`, `port`, `https` and `token` according to your personal setup:
 
 ```lua
 return {
+    show_setup_hint = true,
     host = "192.168.1.10",
     port = 8123,
     https = false,
@@ -387,6 +398,8 @@ If you want several entities behind a single gesture, you can build a list manua
 The simplest way to access all your Home Assistant entities is the built-in gesture action `☰ Home Assistant: all entities`.  
 It opens a ButtonDialog that lists every entity from your configuration file. Tap an entity to run it.
 
+Unlike a manual Quick Menu, it updates itself: changes to `homeassistant_config.lua` appear after the next KOReader restart.
+
 **Result** _(triggered via Long-press on corner: Bottom Right)_:
 
 <p align="center">
@@ -407,7 +420,7 @@ It opens a ButtonDialog that lists every entity from your configuration file. Ta
 <img src="assets/error_message.png" style="width:70%; height:auto;" />
 </p>
 
-### Resources:  
+### Resources
 [KOReader Website](https://koreader.rocks/)
 
 [Home Assistant: REST API](https://developers.home-assistant.io/docs/api/rest/)  

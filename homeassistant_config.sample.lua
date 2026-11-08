@@ -1,9 +1,12 @@
--- Rename this file to "homeassistant_config.lua" and customize it with your Home Assistant URL, token and entities.
--- Restart KOReader afterwards. 
+-- Customize this file with your Home Assistant URL, token and entities.
+-- Restart KOReader afterwards.
 -- Full documentation: https://github.com/moritz-john/homeassistant.koplugin
 
 return {
-    -- Home Assistant connection settings
+    -- Plugin settings:
+    show_setup_hint = true, -- Set to false once you have configured the plugin (hides Getting Started menu entry)
+
+    -- Home Assistant connection settings:
     host = "192.168.1.10", -- Change to your Home Assistant IP Address or Hostname
     port = 8123,           -- Home Assistant Port (usually 443 for HTTPS)
     https = false,         -- Set true only if your Home Assistant is served over HTTPS
@@ -13,11 +16,6 @@ return {
     -- Home Assistant Entity configuration
     entities = {
         -- Perform Actions:
-        {
-            label = "All Switches → turn_off",
-            action = "switch.turn_off",
-            target = "all",
-        },
         {
             label = "Reading Lamp → turn_on",
             action = "light.turn_on",
@@ -40,11 +38,6 @@ return {
                 media_content_type = "music",
                 media_content_id = "https://open.spotify.com/playlist/37i9dQZF1DXbITWG1ZJKYt",
             },
-        },
-        {
-            label = "⏯ Play/Pause",
-            action = "media_player.media_play_pause",
-            target = "media_player.living_room_sonos",
         },
         -- Get Entity States:
         {

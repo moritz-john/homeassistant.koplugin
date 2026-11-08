@@ -2,29 +2,19 @@
 -- This plugin allows KOReader to control Home Assistant entities through its REST API.
 
 local _ = require("gettext")
-local WidgetContainer = require("ui/widget/container/widgetcontainer")
+local logger = require("logger")
 local Dispatcher = require("dispatcher")
+local DataStorage = require("datastorage")
+local ffiutil = require("ffi/util")
+local lfs = require("libs/libkoreader-lfs")
 local UIManager = require("ui/uimanager")
 local NetworkMgr = require("ui/network/manager")
+local WidgetContainer = require("ui/widget/container/widgetcontainer")
 local InfoMessage = require("ui/widget/infomessage")
 local ButtonDialog = require("ui/widget/buttondialog")
 local API = require("homeassistant_api")
 
--- Fall back to an empty config if homeassistant_config.lua is missing, so the plugin still loads.
-local has_config, ha_config = pcall(require, "homeassistant_config")
-if not has_config then
-    ha_config = { entities = {} }
-end
-
--- Detect an old 'config.lua' that hasn't been renamed yet
-local plugin_dir = debug.getinfo(1, "S").source:match("^@(.*)/[^/]+$") or "."
-local has_legacy_config = package.searchpath("homeassistant_config", plugin_dir .. "/?.lua") == nil
-    and package.searchpath("config", plugin_dir .. "/?.lua") ~= nil
-
--- Entities without a label would crash the menu, so give them a visible placeholder.
-for i, entity in ipairs(ha_config.entities) do
-    entity.label = entity.label or string.format("Entity %d (missing label in config)", i)
-end
+local config_path = DataStorage:getSettingsDir() .. "/homeassistant_config.lua"
 
 local HomeAssistant = WidgetContainer:extend {
     name        = "homeassistant",
@@ -38,35 +28,68 @@ HomeAssistant.TIMEOUTS = {
     ERROR    = nil
 }
 
+--- Load the user config into self.config.
+-- self.config always has an `entities` list; self.has_config is false if the config is broken or invalid.
+function HomeAssistant:loadConfig()
+    -- No user config yet: copy the sample into the settings directory
+    if lfs.attributes(config_path, "mode") ~= "file" then
+        local copy_err = ffiutil.copyFile(self.path .. "/homeassistant_config.sample.lua", config_path)
+        if copy_err then
+            logger.warn("homeassistant: could not copy sample config:", copy_err)
+        end
+    end
+
+    local ok, result = pcall(dofile, config_path) -- execute config file, catch errors
+
+    -- Valid = ran without errors, returned a table (i.e. has 'return { ... }') containing an 'entities' table
+    local has_config = ok and type(result) == "table" and type(result.entities) == "table"
+    -- Use the config if valid, otherwise an empty entity list so later entity loops don't fail
+    local ha_config = has_config and result or { entities = {} }
+
+    if not has_config then
+        logger.warn("homeassistant: could not load config:", result)
+    end
+
+    -- Entities without a label would crash the menu, so give them a visible placeholder.
+    for i, entity in ipairs(ha_config.entities) do
+        entity.label = entity.label or string.format("Entity %d (missing label in config)", i)
+    end
+
+    self.has_config, self.config = has_config, ha_config
+end
+
 --- Initialize the plugin
 function HomeAssistant:init()
+    self:loadConfig()
     self:onDispatcherRegisterActions()
     self.ui.menu:registerToMainMenu(self)
 
-    API:init(ha_config)
+    API:init(self.config)
 end
 
 --- Make Home Assistant actions assignable to gestures
 function HomeAssistant:onDispatcherRegisterActions()
+    local entities = self.config.entities
+
     -- Combined action: opens a ButtonDialog listing all configured entities
     Dispatcher:registerAction("ha_show_button_dialog", {
         category = "none",
         event = "ShowHAButtonDialog",
         title = "\u{EA5B} Home Assistant: all entities",
         general = true,
-        separator = (#ha_config.entities == 0), -- last Home Assistant entry if no entities exist
+        separator = (#entities == 0), -- last Home Assistant entry if no entities exist
     })
 
     -- Individual actions: one gesture action per configured entity
-    for i, entity in ipairs(ha_config.entities) do
-        -- Internal action id based on the list position, e.g. "ha_entity_1"
+    -- Ids are position-based, so reordering or deleting entities remaps existing gestures.
+    for i, entity in ipairs(entities) do
         Dispatcher:registerAction(string.format("ha_entity_%d", i), {
             category = "none",
             event = "ActivateHAEvent",
             arg = entity,
             title = entity.label,
             general = true,
-            separator = (i == #ha_config.entities), -- add separator after last entity
+            separator = (i == #entities), -- add separator after last entity
         })
     end
 end
@@ -75,41 +98,50 @@ end
 function HomeAssistant:addToMainMenu(menu_items)
     local sub_items = {}
 
-    -- If homeassistant_config.lua doesn't exist, show "Getting Started" menu entry
-    -- (https://yaytext.com/bold-italic/)
-    if not has_config and not has_legacy_config then
+    -- Config missing/broken or still the shipped example: show a "Getting Started" entry that explains the setup steps
+    if not self.has_config or self.config.show_setup_hint == true then
         table.insert(sub_items, {
-            text = _(" \u{EB62} Getting Started (tap for information)"),
+            text = "\u{EB62} Getting Started (tap for information)",
             callback = function()
                 UIManager:show(InfoMessage:new {
-                    text = _(
-                        "\n" ..
-                        "From your computer:\n" ..
-                        "\u{EAA5} Rename '𝘦𝘹𝘢𝘮𝘱𝘭𝘦_𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder.\n\n" ..
-                        "\u{EAA8} Edit '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' with your Home Assistant URL, token and entities, then restart KOReader.\n\n" ..
-                        "\u{E885} Visit https://github.com/moritz-john/homeassistant.koplugin for the full documentation.\n"),
+                    text =
+                        "From your computer:\n\n" ..
+                        "\u{EAA5} Go to 'koreader/settings/' and edit 'homeassistant_config.lua'\n\n" ..
+                        "\u{EAA8} Configure your host, token and entities, then restart KOReader.\n\n" ..
+                        "\u{E885} Full documentation: https://github.com/moritz-john/homeassistant.koplugin\n",
                 })
             end,
         })
     end
 
-    if has_legacy_config then
+    -- Config could not be loaded or is invalid: point the user to the log
+    if not self.has_config then
         table.insert(sub_items, {
-            text = _(" \u{F071} Rename config.lua (tap for information)"),
+            text = "Config could not be loaded (see crash.log)",
+            enabled = false,
+        })
+    end
+
+    -- Config is still the shipped example: label the entries below as examples
+    if self.config.show_setup_hint == true then
+        table.insert(sub_items, {
+            text = "Example entries:",
+            enabled = false,
+        })
+    end
+
+    -- Config loaded but has no entities: show a hint instead of an empty submenu
+    if self.has_config and #self.config.entities == 0 then
+        table.insert(sub_items, {
+            text = " \u{ED25} No entities configured",
             callback = function()
-                UIManager:show(InfoMessage:new {
-                    text = _(
-                        "\n" ..
-                        "Rename '𝘤𝘰𝘯𝘧𝘪𝘨.𝘭𝘶𝘢' to '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗰𝗼𝗻𝗳𝗶𝗴.𝗹𝘂𝗮' in the '𝘩𝘰𝘮𝘦𝘢𝘴𝘴𝘪𝘴𝘵𝘢𝘯𝘵.𝘬𝘰𝘱𝘭𝘶𝘨𝘪𝘯' folder, then restart KOReader. The contents stay the same.\n\n" ..
-                        "Also make sure that '𝘢𝘱𝘪.𝘭𝘶𝘢' is replaced by the new '𝗵𝗼𝗺𝗲𝗮𝘀𝘀𝗶𝘀𝘁𝗮𝗻𝘁_𝗮𝗽𝗶.𝗹𝘂𝗮'.\n"
-                    ),
-                })
+                self:buildMessage({ label = "No Entity" }, nil, "No entities configured in 'homeassistant_config.lua'.")
             end,
         })
     end
 
     -- Add a menu item for each configured Home Assistant entity
-    for _, entity in ipairs(ha_config.entities) do
+    for _, entity in ipairs(self.config.entities) do
         table.insert(sub_items, {
             text = entity.label,
             callback = function()
@@ -127,7 +159,7 @@ end
 
 --- Handle ShowHAButtonDialog: ButtonDialog listing all entities
 function HomeAssistant:onShowHAButtonDialog()
-    if #ha_config.entities == 0 then
+    if #self.config.entities == 0 then
         self:buildMessage({ label = "No Entity" }, nil, "No entities configured in 'homeassistant_config.lua'.")
         return
     end
@@ -135,7 +167,7 @@ function HomeAssistant:onShowHAButtonDialog()
     local button_dialog
     local buttons = {} -- list of rows; each row is a list of buttons (here: one button per row)
 
-    for _, entity in ipairs(ha_config.entities) do
+    for _, entity in ipairs(self.config.entities) do
         table.insert(buttons, {
             {
                 text = entity.label,
@@ -165,6 +197,7 @@ function HomeAssistant:onActivateHAEvent(entity)
         return
     end
 
+    -- Offline: queues a re-run once Wi-Fi is up, so stop here.
     if NetworkMgr:willRerunWhenOnline(function() self:onActivateHAEvent(entity) end) then
         return
     end
@@ -196,11 +229,11 @@ function HomeAssistant:buildMessage(entity, result, err)
         timeout = self.TIMEOUTS.SIMPLE
     elseif entity.template then
         title   = "𝘌𝘷𝘢𝘭𝘶𝘢𝘵𝘦 𝘛𝘦𝘮𝘱𝘭𝘢𝘵𝘦"
-        content = result
+        content = result or ""
         timeout = self.TIMEOUTS.RESPONSE
     elseif entity.attributes then
         title   = "𝘙𝘦𝘤𝘦𝘪𝘷𝘦 𝘚𝘵𝘢𝘵𝘦"
-        content = result
+        content = result or ""
         timeout = self.TIMEOUTS.RESPONSE
     end
 
@@ -211,6 +244,14 @@ function HomeAssistant:buildMessage(entity, result, err)
             content),
         timeout = timeout,
     })
+end
+
+--- Uninstall hook
+function HomeAssistant:deletePluginSettings()
+    local ok, err = os.remove(config_path)
+    if not ok then
+        logger.warn("homeassistant: could not delete", err)
+    end
 end
 
 return HomeAssistant
