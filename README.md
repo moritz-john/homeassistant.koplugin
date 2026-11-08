@@ -1,6 +1,6 @@
 # homeassistant.koplugin
 
-> In case you are coming from [koreader/contrib](https://github.com/koreader/contrib), make sure that you checkout [the latest commit](https://github.com/moritz-john/homeassistant.koplugin).
+> In case you are coming from [koreader/contrib](https://github.com/koreader/contrib), make sure that you check out [the latest commit](https://github.com/moritz-john/homeassistant.koplugin).
 
 <p align="center">
   Jump to the <a href="#installation">[Installation]</a>, <a href="#configuration">[Configuration]</a> or <a href="#examples">[Examples]</a> section
@@ -398,6 +398,8 @@ If you want several entities behind a single gesture, you can build a list manua
 The simplest way to access all your Home Assistant entities is the built-in gesture action `☰ Home Assistant: all entities`.  
 It opens a ButtonDialog that lists every entity from your configuration file. Tap an entity to run it.
 
+Unlike a manual Quick Menu, it updates itself: changes to `homeassistant_config.lua` appear after the next KOReader restart.
+
 **Result** _(triggered via Long-press on corner: Bottom Right)_:
 
 <p align="center">
@@ -418,7 +420,7 @@ It opens a ButtonDialog that lists every entity from your configuration file. Ta
 <img src="assets/error_message.png" style="width:70%; height:auto;" />
 </p>
 
-### Resources:  
+### Resources
 [KOReader Website](https://koreader.rocks/)
 
 [Home Assistant: REST API](https://developers.home-assistant.io/docs/api/rest/)  
